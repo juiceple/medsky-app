@@ -12,7 +12,11 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before 
 ## 구조
 
 - `app/` — expo-router 파일 기반 라우팅.
-  - `app/login.tsx` — Supabase Auth 이메일/비밀번호 로그인.
+  - `app/login.tsx` — 로그인 화면. Google OAuth 로그인이 기본으로 크게 보이고,
+    이메일/비밀번호 로그인·회원가입은 그 아래 작은 링크(`아이디로 로그인 · 가입`)
+    를 눌러야 펼쳐진다. Google OAuth는 Supabase 대시보드에서 Google provider를
+    켜고(Client ID/Secret) Redirect URL 에 `medskyapp://`(`app.json`의 `expo.scheme`)
+    를 추가해야 실제로 동작한다 — 코드만으로는 안 됨.
   - `app/(tabs)/` — 로그인 후 진입하는 홈 탭 (`index.tsx`) / 마이페이지 탭 (`profile.tsx`).
   - `app/_layout.tsx` — `Stack.Protected`로 세션 유무에 따라 `(tabs)` ↔ `login` 분기.
 - `lib/supabase.ts` — Supabase 클라이언트. 세션은 `expo-secure-store`(암호화 키) +
@@ -36,7 +40,8 @@ Expo는 `EXPO_PUBLIC_` 접두사가 붙은 변수만 클라이언트 번들에 �
 medsky_homepage에는 두 가지 고객 접근 방식이 있다:
 
 1. **Supabase Auth 로그인** — 레거시 `management` 상품 학생, 그리고 컨설턴트/매니저/
-   관리자. 이 앱은 이 방식만 구현되어 있다.
+   관리자. 이 앱은 이 방식만 구현되어 있다 (Google OAuth + 이메일/비밀번호
+   로그인·회원가입).
 2. **토큰 URL 접근** (`student/susi/[token]`, `student/jungsi/[token]`,
    `parent/management/[token]`) — 현재 주력 상품(2027 수시/정시)의 학생·학부모는
    로그인 없이 알림톡으로 받은 토큰 링크로만 진행 상황을 본다. 이건 Next.js
