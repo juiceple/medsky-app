@@ -19,6 +19,10 @@ const MAPPING = {
   'person.fill': 'person',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'folder.fill': 'folder',
+  'doc.text.fill': 'description',
+  'chart.bar.fill': 'bar-chart',
+  'link': 'link',
 } as IconMapping;
 
 /**
