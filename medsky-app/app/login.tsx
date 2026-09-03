@@ -99,17 +99,14 @@ export default function LoginScreen() {
               isTablet && styles.containerTablet,
               { paddingHorizontal: isTablet ? 0 : 24 },
             ]}>
-            <View style={[styles.logoArea, isTablet && styles.logoAreaTablet]}>
-              <Image
-                source={require('@/assets/images/medsky-logo.png')}
-                style={[styles.logo, isTablet && styles.logoTablet]}
-                resizeMode="contain"
-              />
-              {isTablet ? <Text style={styles.brandTitle}>메드스카이</Text> : null}
-            </View>
+            <Image
+              source={require('@/assets/images/medsky-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
 
-            <View style={[styles.card, isTablet && styles.cardTablet]}>
-              {isTablet ? null : <Text style={styles.title}>메드스카이</Text>}
+            <View style={styles.card}>
+              <Text style={styles.title}>메드스카이</Text>
               <Text style={styles.subtitle}>로그인 후 이용해 주세요</Text>
 
               <Pressable
@@ -212,18 +209,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   containerTablet: {
-    maxWidth: 840,
+    maxWidth: 400,
     alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 72,
-  },
-  logoArea: {
-    alignItems: 'center',
-  },
-  logoAreaTablet: {
-    flex: 1,
   },
   logo: {
     width: 56,
@@ -231,18 +218,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 32,
   },
-  logoTablet: {
-    width: 140,
-    height: 140,
-    marginBottom: 20,
-  },
-  brandTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1D1F',
-  },
   card: {
-    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 24,
@@ -252,10 +228,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 3,
-  },
-  cardTablet: {
-    flex: 1,
-    maxWidth: 400,
   },
   title: {
     fontSize: 20,
