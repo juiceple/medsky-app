@@ -1,24 +1,28 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   TextInput,
+  View,
   useWindowDimensions,
 } from 'react-native';
 
 import { AntDesign } from '@expo/vector-icons';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/lib/auth-context';
 
 type EmailMode = 'signIn' | 'signUp';
 
 const TABLET_BREAKPOINT = 768;
+
+const BRAND_BLUE = '#2871E6';
+const BRAND_BLUE_PRESSED = '#1F5FC4';
 
 export default function LoginScreen() {
   const { signInWithGoogle, signInWithPassword, signUpWithPassword } = useAuth();
@@ -85,96 +89,105 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ThemedView style={styles.flex}>
+      <View style={styles.page}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
-          <ThemedView
+          <View
             style={[
               styles.container,
               isTablet && styles.containerTablet,
               { paddingHorizontal: isTablet ? 0 : 24 },
             ]}>
-            <ThemedText type="title" style={[styles.title, isTablet && styles.titleTablet]}>
-              메드스카이
-            </ThemedText>
-            <ThemedText style={[styles.subtitle, isTablet && styles.subtitleTablet]}>
-              로그인 후 이용해 주세요
-            </ThemedText>
+            <Image
+              source={require('@/assets/images/medsky-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
 
-            <Pressable
-              style={({ pressed }) => [styles.googleButton, pressed && styles.buttonPressed]}
-              onPress={handleGoogleSignIn}
-              disabled={googleSubmitting}>
-              {googleSubmitting ? (
-                <ActivityIndicator color="#1f1f1f" />
-              ) : (
-                <>
-                  <AntDesign name="google" size={18} color="#1f1f1f" style={styles.googleIcon} />
-                  <ThemedText style={styles.googleButtonText}>Google로 계속하기</ThemedText>
-                </>
-              )}
-            </Pressable>
+            <View style={styles.card}>
+              <Text style={styles.title}>메드스카이</Text>
+              <Text style={styles.subtitle}>로그인 후 이용해 주세요</Text>
 
-            {errorMessage ? <ThemedText style={styles.error}>{errorMessage}</ThemedText> : null}
-            {infoMessage ? <ThemedText style={styles.info}>{infoMessage}</ThemedText> : null}
-
-            {showEmailForm ? (
-              <ThemedView style={styles.emailForm}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="이메일"
-                  placeholderTextColor="#999"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                  editable={!submitting}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="비밀번호"
-                  placeholderTextColor="#999"
-                  secureTextEntry
-                  autoComplete="password"
-                  value={password}
-                  onChangeText={setPassword}
-                  editable={!submitting}
-                />
-
-                <Pressable
-                  style={({ pressed }) => [styles.smallButton, pressed && styles.buttonPressed]}
-                  onPress={handleEmailSubmit}
-                  disabled={submitting}>
-                  {submitting ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <ThemedText style={styles.smallButtonText}>
-                      {emailMode === 'signIn' ? '이메일로 로그인' : '이메일로 가입하기'}
-                    </ThemedText>
-                  )}
-                </Pressable>
-
-                <Pressable onPress={toggleEmailMode} hitSlop={8}>
-                  <ThemedText style={styles.linkText}>
-                    {emailMode === 'signIn'
-                      ? '계정이 없으신가요? 회원가입'
-                      : '이미 계정이 있으신가요? 로그인'}
-                  </ThemedText>
-                </Pressable>
-              </ThemedView>
-            ) : (
               <Pressable
-                onPress={() => setShowEmailForm(true)}
-                hitSlop={8}
-                style={styles.emailToggle}>
-                <ThemedText style={styles.linkText}>아이디로 로그인 · 가입</ThemedText>
+                style={({ pressed }) => [styles.googleButton, pressed && styles.buttonPressed]}
+                onPress={handleGoogleSignIn}
+                disabled={googleSubmitting}>
+                {googleSubmitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <AntDesign name="google" size={18} color="#fff" style={styles.googleIcon} />
+                    <Text style={styles.googleButtonText}>Google로 계속하기</Text>
+                  </>
+                )}
               </Pressable>
-            )}
-          </ThemedView>
+
+              {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+              {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
+
+              {showEmailForm ? (
+                <View style={styles.emailForm}>
+                  <View style={styles.divider} />
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="이메일"
+                    placeholderTextColor="#9AA0A6"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    keyboardType="email-address"
+                    value={email}
+                    onChangeText={setEmail}
+                    editable={!submitting}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="비밀번호"
+                    placeholderTextColor="#9AA0A6"
+                    secureTextEntry
+                    autoComplete="password"
+                    value={password}
+                    onChangeText={setPassword}
+                    editable={!submitting}
+                  />
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.submitButton,
+                      pressed && styles.submitButtonPressed,
+                    ]}
+                    onPress={handleEmailSubmit}
+                    disabled={submitting}>
+                    {submitting ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>
+                        {emailMode === 'signIn' ? '이메일로 로그인' : '이메일로 가입하기'}
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable onPress={toggleEmailMode} hitSlop={8}>
+                    <Text style={styles.linkText}>
+                      {emailMode === 'signIn'
+                        ? '계정이 없으신가요? 회원가입'
+                        : '이미 계정이 있으신가요? 로그인'}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => setShowEmailForm(true)}
+                  hitSlop={8}
+                  style={styles.emailToggle}>
+                  <Text style={styles.linkText}>아이디로 로그인 · 가입</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
         </ScrollView>
-      </ThemedView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -183,43 +196,57 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  page: {
+    flex: 1,
+    backgroundColor: '#EEEEEE',
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
+    paddingVertical: 40,
   },
   container: {
     width: '100%',
-    gap: 12,
   },
   containerTablet: {
-    maxWidth: 480,
+    maxWidth: 400,
     alignSelf: 'center',
-    gap: 16,
+  },
+  logo: {
+    width: 56,
+    height: 56,
+    alignSelf: 'center',
+    marginBottom: 32,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
   },
   title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1D1F',
     textAlign: 'center',
-  },
-  titleTablet: {
-    fontSize: 40,
-    lineHeight: 44,
   },
   subtitle: {
     fontSize: 14,
-    opacity: 0.6,
+    color: '#686A6D',
     textAlign: 'center',
+    marginTop: 4,
     marginBottom: 24,
-  },
-  subtitleTablet: {
-    fontSize: 16,
-    marginBottom: 32,
   },
   googleButton: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    borderRadius: 8,
-    paddingVertical: 14,
+    backgroundColor: '#333333',
+    borderRadius: 12,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -227,54 +254,67 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   googleButtonText: {
-    color: '#1f1f1f',
-    fontSize: 16,
+    color: '#fff',
+    fontSize: 15,
     fontWeight: '600',
   },
   buttonPressed: {
     opacity: 0.85,
   },
   error: {
-    color: '#dc2626',
+    color: '#DC2626',
     fontSize: 13,
     textAlign: 'center',
+    marginTop: 16,
   },
   info: {
-    color: '#0a7ea4',
+    color: BRAND_BLUE,
     fontSize: 13,
     textAlign: 'center',
+    marginTop: 16,
   },
   emailToggle: {
-    marginTop: 32,
+    marginTop: 24,
     alignItems: 'center',
   },
   emailForm: {
-    marginTop: 24,
-    gap: 10,
+    marginTop: 8,
+    gap: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#EEEEEE',
+    marginVertical: 16,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
+    height: 52,
+    borderWidth: 1.4,
+    borderColor: '#E5E6E9',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: '#1A1D1F',
+    backgroundColor: '#fff',
   },
-  smallButton: {
-    backgroundColor: '#0a7ea4',
-    borderRadius: 8,
-    paddingVertical: 10,
+  submitButton: {
+    backgroundColor: BRAND_BLUE,
+    borderRadius: 12,
+    height: 52,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  smallButtonText: {
+  submitButtonPressed: {
+    backgroundColor: BRAND_BLUE_PRESSED,
+  },
+  submitButtonText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   linkText: {
-    fontSize: 12,
-    opacity: 0.6,
+    fontSize: 13,
+    color: BRAND_BLUE,
+    fontWeight: '500',
     textAlign: 'center',
-    textDecorationLine: 'underline',
   },
 });
