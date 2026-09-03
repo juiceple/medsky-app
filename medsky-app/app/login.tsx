@@ -4,8 +4,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 
 import { AntDesign } from '@expo/vector-icons';
@@ -16,8 +18,12 @@ import { useAuth } from '@/lib/auth-context';
 
 type EmailMode = 'signIn' | 'signUp';
 
+const TABLET_BREAKPOINT = 768;
+
 export default function LoginScreen() {
   const { signInWithGoogle, signInWithPassword, signUpWithPassword } = useAuth();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= TABLET_BREAKPOINT;
 
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -79,79 +85,95 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ThemedView style={styles.container}>
-        <ThemedText type="title" style={styles.title}>
-          메드스카이
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>로그인 후 이용해 주세요</ThemedText>
-
-        <Pressable
-          style={({ pressed }) => [styles.googleButton, pressed && styles.buttonPressed]}
-          onPress={handleGoogleSignIn}
-          disabled={googleSubmitting}>
-          {googleSubmitting ? (
-            <ActivityIndicator color="#1f1f1f" />
-          ) : (
-            <>
-              <AntDesign name="google" size={18} color="#1f1f1f" style={styles.googleIcon} />
-              <ThemedText style={styles.googleButtonText}>Google로 계속하기</ThemedText>
-            </>
-          )}
-        </Pressable>
-
-        {errorMessage ? <ThemedText style={styles.error}>{errorMessage}</ThemedText> : null}
-        {infoMessage ? <ThemedText style={styles.info}>{infoMessage}</ThemedText> : null}
-
-        {showEmailForm ? (
-          <ThemedView style={styles.emailForm}>
-            <TextInput
-              style={styles.input}
-              placeholder="이메일"
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              editable={!submitting}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="비밀번호"
-              placeholderTextColor="#999"
-              secureTextEntry
-              autoComplete="password"
-              value={password}
-              onChangeText={setPassword}
-              editable={!submitting}
-            />
+      <ThemedView style={styles.flex}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled">
+          <ThemedView
+            style={[
+              styles.container,
+              isTablet && styles.containerTablet,
+              { paddingHorizontal: isTablet ? 0 : 24 },
+            ]}>
+            <ThemedText type="title" style={[styles.title, isTablet && styles.titleTablet]}>
+              메드스카이
+            </ThemedText>
+            <ThemedText style={[styles.subtitle, isTablet && styles.subtitleTablet]}>
+              로그인 후 이용해 주세요
+            </ThemedText>
 
             <Pressable
-              style={({ pressed }) => [styles.smallButton, pressed && styles.buttonPressed]}
-              onPress={handleEmailSubmit}
-              disabled={submitting}>
-              {submitting ? (
-                <ActivityIndicator color="#fff" />
+              style={({ pressed }) => [styles.googleButton, pressed && styles.buttonPressed]}
+              onPress={handleGoogleSignIn}
+              disabled={googleSubmitting}>
+              {googleSubmitting ? (
+                <ActivityIndicator color="#1f1f1f" />
               ) : (
-                <ThemedText style={styles.smallButtonText}>
-                  {emailMode === 'signIn' ? '이메일로 로그인' : '이메일로 가입하기'}
-                </ThemedText>
+                <>
+                  <AntDesign name="google" size={18} color="#1f1f1f" style={styles.googleIcon} />
+                  <ThemedText style={styles.googleButtonText}>Google로 계속하기</ThemedText>
+                </>
               )}
             </Pressable>
 
-            <Pressable onPress={toggleEmailMode} hitSlop={8}>
-              <ThemedText style={styles.linkText}>
-                {emailMode === 'signIn'
-                  ? '계정이 없으신가요? 회원가입'
-                  : '이미 계정이 있으신가요? 로그인'}
-              </ThemedText>
-            </Pressable>
+            {errorMessage ? <ThemedText style={styles.error}>{errorMessage}</ThemedText> : null}
+            {infoMessage ? <ThemedText style={styles.info}>{infoMessage}</ThemedText> : null}
+
+            {showEmailForm ? (
+              <ThemedView style={styles.emailForm}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="이메일"
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!submitting}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="비밀번호"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                  autoComplete="password"
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!submitting}
+                />
+
+                <Pressable
+                  style={({ pressed }) => [styles.smallButton, pressed && styles.buttonPressed]}
+                  onPress={handleEmailSubmit}
+                  disabled={submitting}>
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <ThemedText style={styles.smallButtonText}>
+                      {emailMode === 'signIn' ? '이메일로 로그인' : '이메일로 가입하기'}
+                    </ThemedText>
+                  )}
+                </Pressable>
+
+                <Pressable onPress={toggleEmailMode} hitSlop={8}>
+                  <ThemedText style={styles.linkText}>
+                    {emailMode === 'signIn'
+                      ? '계정이 없으신가요? 회원가입'
+                      : '이미 계정이 있으신가요? 로그인'}
+                  </ThemedText>
+                </Pressable>
+              </ThemedView>
+            ) : (
+              <Pressable
+                onPress={() => setShowEmailForm(true)}
+                hitSlop={8}
+                style={styles.emailToggle}>
+                <ThemedText style={styles.linkText}>아이디로 로그인 · 가입</ThemedText>
+              </Pressable>
+            )}
           </ThemedView>
-        ) : (
-          <Pressable onPress={() => setShowEmailForm(true)} hitSlop={8} style={styles.emailToggle}>
-            <ThemedText style={styles.linkText}>아이디로 로그인 · 가입</ThemedText>
-          </Pressable>
-        )}
+        </ScrollView>
       </ThemedView>
     </KeyboardAvoidingView>
   );
@@ -161,20 +183,35 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  container: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+  },
+  container: {
+    width: '100%',
     gap: 12,
+  },
+  containerTablet: {
+    maxWidth: 480,
+    alignSelf: 'center',
+    gap: 16,
   },
   title: {
     textAlign: 'center',
+  },
+  titleTablet: {
+    fontSize: 40,
+    lineHeight: 44,
   },
   subtitle: {
     fontSize: 14,
     opacity: 0.6,
     textAlign: 'center',
     marginBottom: 24,
+  },
+  subtitleTablet: {
+    fontSize: 16,
+    marginBottom: 32,
   },
   googleButton: {
     flexDirection: 'row',
