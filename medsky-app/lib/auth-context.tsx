@@ -2,6 +2,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
@@ -97,7 +98,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    async function restoreSession() {
+      // On web, Google OAuth redirects back to this page with the session
+      // tokens in the URL fragment (implicit flow) instead of being handed to
+      // createSessionFromUrl via the in-app browser session, which only
+      // happens on native. Consume it here so web logins don't get stranded
+      // on a URL like https://www.medsky.co.kr/#access_token=... .
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hash) {
+        try {
+          await createSessionFromUrl(window.location.href);
+        } catch {
+          // Not an auth redirect (or a stale/invalid one) — ignore and fall through.
+        } finally {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
       if (!isMounted) return;
       setSession(initialSession);
       if (initialSession?.user) {
@@ -105,7 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setLoading(false);
       }
-    });
+    }
+
+    restoreSession();
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
