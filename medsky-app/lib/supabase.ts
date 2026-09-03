@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import * as aesjs from 'aes-js';
 import * as SecureStore from 'expo-secure-store';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import type { Database } from '@/lib/database.types';
 
@@ -48,10 +48,14 @@ class LargeSecureStore {
   }
 
   async getItem(key: string) {
-    // expo-secure-store's web shim touches `window`/localStorage directly,
-    // which doesn't exist during expo-router's Node-side static export
-    // prerender. There's no session to recover in that context anyway.
+    // expo-router's Node-side static export prerender has no `window`.
+    // There's no session to recover in that context anyway.
     if (typeof window === 'undefined') return null;
+
+    // expo-secure-store has no web implementation (its native module is a
+    // stubbed `{}` on web), so there's no encryption key to decrypt with.
+    // Store the session as plain AsyncStorage (backed by localStorage) instead.
+    if (Platform.OS === 'web') return AsyncStorage.getItem(key);
 
     const encrypted = await AsyncStorage.getItem(key);
     if (!encrypted) return null;
@@ -62,11 +66,18 @@ class LargeSecureStore {
     if (typeof window === 'undefined') return;
 
     await AsyncStorage.removeItem(key);
+    if (Platform.OS === 'web') return;
+
     await SecureStore.deleteItemAsync(key);
   }
 
   async setItem(key: string, value: string) {
     if (typeof window === 'undefined') return;
+
+    if (Platform.OS === 'web') {
+      await AsyncStorage.setItem(key, value);
+      return;
+    }
 
     const encrypted = await this.encrypt(key, value);
     await AsyncStorage.setItem(key, encrypted);
