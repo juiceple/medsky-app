@@ -27,10 +27,6 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Lets the in-app browser tab used for the Google OAuth flow close itself
-// and hand control back to the app once the redirect lands (web only; a no-op on native).
-WebBrowser.maybeCompleteAuthSession();
-
 /**
  * Supabase's OAuth flow redirects to `redirectTo` with the session tokens in
  * the URL fragment (implicit flow). Parse them out and hand them to the
@@ -161,6 +157,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async signInWithGoogle() {
         try {
           const redirectTo = Linking.createURL('/');
+
+          if (Platform.OS === 'web') {
+            // Do a normal full-page redirect instead of a popup. expo-web-browser's
+            // popup flow needs the popup to call back into window.opener to signal
+            // completion, but Google's OAuth pages send a Cross-Origin-Opener-Policy
+            // header that severs window.opener during the redirect chain, so the
+            // popup never reports back — it's left stranded showing the token in
+            // the URL hash instead of closing. A top-level redirect sidesteps that
+            // entirely; restoreSession() below already consumes the returned hash.
+            const { error } = await supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo },
+            });
+            return { error: error?.message ?? null };
+          }
+
           const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: { redirectTo, skipBrowserRedirect: true },
