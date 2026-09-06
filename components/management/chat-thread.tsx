@@ -8,10 +8,12 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Linking,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   StyleSheet,
   TextInput,
+  TextInputKeyPressEventData,
   View,
 } from 'react-native';
 
@@ -84,8 +86,8 @@ export function ChatThread({ studentId }: { studentId?: string }) {
     return () => clearInterval(interval);
   }, [load]);
 
-  async function handleSend() {
-    const body = draft.trim();
+  async function handleSend(overrideBody?: string) {
+    const body = (overrideBody ?? draft).trim();
     if (!body || sending) return;
 
     setSending(true);
@@ -98,6 +100,30 @@ export function ChatThread({ studentId }: { studentId?: string }) {
       setDraft(body);
     } finally {
       setSending(false);
+    }
+  }
+
+  // 웹은 onKeyPress 로 plain Enter 를 가로채(Shift+Enter 는 줄바꿈으로 남김) 여기까지 오지 않고,
+  // 네이티브(iOS/Android)는 onKeyPress 로 줄바꿈 삽입을 막을 수 없어 onChangeText 에 섞여 들어온
+  // 개행을 감지해서 전송으로 처리한다.
+  function handleChangeText(text: string) {
+    if (Platform.OS !== 'web' && text.includes('\n')) {
+      void handleSend(text.replace(/\n/g, ''));
+      return;
+    }
+    setDraft(text);
+  }
+
+  function handleKeyPress(event: NativeSyntheticEvent<TextInputKeyPressEventData>) {
+    if (Platform.OS !== 'web') return;
+    const nativeEvent = event.nativeEvent as unknown as {
+      key: string;
+      shiftKey?: boolean;
+      preventDefault?: () => void;
+    };
+    if (nativeEvent.key === 'Enter' && !nativeEvent.shiftKey) {
+      nativeEvent.preventDefault?.();
+      void handleSend();
     }
   }
 
@@ -219,7 +245,8 @@ export function ChatThread({ studentId }: { studentId?: string }) {
         <TextInput
           style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={handleChangeText}
+          onKeyPress={handleKeyPress}
           placeholder="메시지 입력"
           placeholderTextColor={textTertiary}
           multiline
@@ -229,7 +256,7 @@ export function ChatThread({ studentId }: { studentId?: string }) {
             styles.sendButton,
             { backgroundColor: canSend ? primary : primaryMuted },
           ]}
-          onPress={handleSend}
+          onPress={() => handleSend()}
           disabled={!canSend}>
           <Ionicons name="arrow-up" size={20} color={canSend ? '#fff' : primary} />
         </Pressable>
