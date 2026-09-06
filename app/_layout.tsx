@@ -32,6 +32,8 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Protected guard={!!session}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="student/[id]" options={{ title: '' }} />
+          <Stack.Screen name="chat/[studentId]" options={{ title: '' }} />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
