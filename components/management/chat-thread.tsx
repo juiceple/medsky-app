@@ -190,44 +190,65 @@ export function ChatThread({ studentId }: { studentId?: string }) {
         keyExtractor={(item) => item.id}
         inverted
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.bubble,
-              item.isMine
-                ? [styles.bubbleMine, { backgroundColor: primary }]
-                : [styles.bubbleTheirs, { backgroundColor: surfaceSecondary }],
-            ]}>
-            {item.body ? (
-              <ThemedText style={[styles.bubbleText, { color: item.isMine ? '#fff' : text }]}>
-                {item.body}
-              </ThemedText>
-            ) : null}
-            {item.hasFile ? (
-              <Pressable style={styles.fileChip} onPress={() => handleOpenFile(item.id)}>
-                <Ionicons
-                  name="document-attach-outline"
-                  size={15}
-                  color={item.isMine ? '#fff' : primary}
-                />
-                <ThemedText
-                  style={[styles.bubbleText, styles.fileChipText, { color: item.isMine ? '#fff' : primary }]}>
-                  {item.fileName ?? '첨부파일'}
-                </ThemedText>
-              </Pressable>
-            ) : null}
-            <ThemedText
-              style={[
-                styles.bubbleTime,
-                { color: item.isMine ? 'rgba(255,255,255,0.75)' : textTertiary },
-              ]}>
+        renderItem={({ item }) => {
+          const time = (
+            <ThemedText style={[styles.timeText, { color: textTertiary }]}>
               {new Date(item.createdAt).toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
             </ThemedText>
-          </View>
-        )}
+          );
+
+          const bubble = (
+            <View
+              style={[
+                styles.bubble,
+                item.isMine
+                  ? [styles.bubbleMine, { backgroundColor: primary }]
+                  : [styles.bubbleTheirs, { backgroundColor: surfaceSecondary }],
+              ]}>
+              {item.body ? (
+                <ThemedText style={[styles.bubbleText, { color: item.isMine ? '#fff' : text }]}>
+                  {item.body}
+                </ThemedText>
+              ) : null}
+              {item.hasFile ? (
+                <Pressable style={styles.fileChip} onPress={() => handleOpenFile(item.id)}>
+                  <Ionicons
+                    name="document-attach-outline"
+                    size={15}
+                    color={item.isMine ? '#fff' : primary}
+                  />
+                  <ThemedText
+                    style={[styles.bubbleText, styles.fileChipText, { color: item.isMine ? '#fff' : primary }]}>
+                    {item.fileName ?? '첨부파일'}
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
+          );
+
+          return (
+            <View
+              style={[
+                styles.row,
+                item.isMine ? styles.rowMine : styles.rowTheirs,
+              ]}>
+              {item.isMine ? (
+                <>
+                  {time}
+                  {bubble}
+                </>
+              ) : (
+                <>
+                  {bubble}
+                  {time}
+                </>
+              )}
+            </View>
+          );
+        }}
         ListEmptyComponent={
           <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
             아직 대화가 없어요. 먼저 메시지를 보내보세요.
@@ -270,6 +291,14 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: Spacing.lg, gap: Spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
   emptyText: { textAlign: 'center', marginTop: 40, fontSize: 14 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+    width: '100%',
+  },
+  rowMine: { justifyContent: 'flex-end' },
+  rowTheirs: { justifyContent: 'flex-start' },
   bubble: {
     maxWidth: '80%',
     borderRadius: Radius.lg,
@@ -277,15 +306,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   bubbleMine: {
-    alignSelf: 'flex-end',
     borderBottomRightRadius: 4,
   },
   bubbleTheirs: {
-    alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
   },
   bubbleText: { fontSize: 14.5, lineHeight: 20 },
-  bubbleTime: { fontSize: 10, marginTop: 2 },
+  timeText: { fontSize: 10 },
   fileChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   fileChipText: { textDecorationLine: 'underline' },
   inputRow: {
