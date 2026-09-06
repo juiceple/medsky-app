@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '@/lib/auth-context';
 
@@ -23,6 +23,10 @@ const TABLET_BREAKPOINT = 768;
 
 const BRAND_BLUE = '#2871E6';
 const BRAND_BLUE_PRESSED = '#1F5FC4';
+const BRAND_BLUE_MUTED = '#EAF1FD';
+const INK = '#111827';
+const INK_MUTED = '#6B7280';
+const BORDER = '#E5E7EB';
 
 export default function LoginScreen() {
   const { signInWithGoogle, signInWithPassword, signUpWithPassword } = useAuth();
@@ -35,6 +39,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -99,39 +104,55 @@ export default function LoginScreen() {
               isTablet && styles.containerTablet,
               { paddingHorizontal: isTablet ? 0 : 24 },
             ]}>
-            <Image
-              source={require('@/assets/images/medsky-logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <View style={styles.brandBlock}>
+              <View style={styles.logoBadge}>
+                <Image
+                  source={require('@/assets/images/medsky-logo.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.brandTitle}>메드스카이</Text>
+              <Text style={styles.brandTagline}>의약학계열 입시의 시작</Text>
+            </View>
 
             <View style={styles.card}>
-              <Text style={styles.title}>메드스카이</Text>
-              <Text style={styles.subtitle}>로그인 후 이용해 주세요</Text>
+              <Text style={styles.title}>로그인</Text>
+              <Text style={styles.subtitle}>계정으로 로그인 후 이용해 주세요</Text>
 
               <Pressable
-                style={({ pressed }) => [styles.googleButton, pressed && styles.buttonPressed]}
+                style={({ pressed }) => [styles.googleButton, pressed && styles.googleButtonPressed]}
                 onPress={handleGoogleSignIn}
                 disabled={googleSubmitting}>
                 {googleSubmitting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={INK} />
                 ) : (
                   <>
-                    <AntDesign name="google" size={18} color="#fff" style={styles.googleIcon} />
+                    <AntDesign name="google" size={18} color={INK} style={styles.googleIcon} />
                     <Text style={styles.googleButtonText}>Google로 계속하기</Text>
                   </>
                 )}
               </Pressable>
 
-              {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-              {infoMessage ? <Text style={styles.info}>{infoMessage}</Text> : null}
+              {errorMessage ? (
+                <View style={styles.messageRow}>
+                  <Ionicons name="alert-circle" size={15} color="#DC2626" />
+                  <Text style={styles.error}>{errorMessage}</Text>
+                </View>
+              ) : null}
+              {infoMessage ? (
+                <View style={styles.messageRow}>
+                  <Ionicons name="checkmark-circle" size={15} color={BRAND_BLUE} />
+                  <Text style={styles.info}>{infoMessage}</Text>
+                </View>
+              ) : null}
 
               {showEmailForm ? (
                 <View style={styles.emailForm}>
                   <View style={styles.divider} />
 
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, focusedField === 'email' && styles.inputFocused]}
                     placeholder="이메일"
                     placeholderTextColor="#9AA0A6"
                     autoCapitalize="none"
@@ -139,16 +160,20 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                     value={email}
                     onChangeText={setEmail}
+                    onFocus={() => setFocusedField('email')}
+                    onBlur={() => setFocusedField(null)}
                     editable={!submitting}
                   />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, focusedField === 'password' && styles.inputFocused]}
                     placeholder="비밀번호"
                     placeholderTextColor="#9AA0A6"
                     secureTextEntry
                     autoComplete="password"
                     value={password}
                     onChangeText={setPassword}
+                    onFocus={() => setFocusedField('password')}
+                    onBlur={() => setFocusedField(null)}
                     editable={!submitting}
                   />
 
@@ -198,7 +223,7 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F5F6F8',
   },
   scrollContent: {
     flexGrow: 1,
@@ -212,66 +237,98 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
   },
-  logo: {
-    width: 56,
-    height: 56,
-    alignSelf: 'center',
+  brandBlock: {
+    alignItems: 'center',
     marginBottom: 32,
+  },
+  logoBadge: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+  },
+  brandTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: INK,
+    letterSpacing: -0.3,
+  },
+  brandTagline: {
+    fontSize: 13,
+    color: INK_MUTED,
+    marginTop: 4,
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
     gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 4,
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1D1F',
+    fontWeight: '800',
+    color: INK,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#686A6D',
+    color: INK_MUTED,
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 24,
   },
   googleButton: {
     flexDirection: 'row',
-    backgroundColor: '#333333',
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1.4,
+    borderColor: BORDER,
+    borderRadius: 14,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  googleButtonPressed: {
+    backgroundColor: '#F5F6F8',
   },
   googleIcon: {
     marginRight: 10,
   },
   googleButtonText: {
-    color: '#fff',
+    color: INK,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  buttonPressed: {
-    opacity: 0.85,
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
   },
   error: {
     color: '#DC2626',
     fontSize: 13,
-    textAlign: 'center',
-    marginTop: 16,
   },
   info: {
     color: BRAND_BLUE,
     fontSize: 13,
-    textAlign: 'center',
-    marginTop: 16,
   },
   emailToggle: {
     marginTop: 24,
@@ -289,16 +346,20 @@ const styles = StyleSheet.create({
   input: {
     height: 52,
     borderWidth: 1.4,
-    borderColor: '#E5E6E9',
-    borderRadius: 12,
+    borderColor: BORDER,
+    borderRadius: 14,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: '#1A1D1F',
+    color: INK,
     backgroundColor: '#fff',
+  },
+  inputFocused: {
+    borderColor: BRAND_BLUE,
+    backgroundColor: BRAND_BLUE_MUTED,
   },
   submitButton: {
     backgroundColor: BRAND_BLUE,
-    borderRadius: 12,
+    borderRadius: 14,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
@@ -314,7 +375,7 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 13,
     color: BRAND_BLUE,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
   },
 });

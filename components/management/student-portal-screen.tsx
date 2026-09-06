@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useState } from 'react';
 import {
@@ -8,12 +9,19 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Avatar } from '@/components/ui/avatar';
+import { Badge, lessonStatusTone } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { Radius, Spacing } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   confirmRecordUpload,
   createRecordUploadTicket,
@@ -38,6 +46,9 @@ export function StudentPortalScreen() {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const background = useThemeColor({}, 'background');
+  const primary = useThemeColor({}, 'primary');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   const load = useCallback(async () => {
     try {
@@ -121,9 +132,9 @@ export function StudentPortalScreen() {
 
   if (state.status === 'loading') {
     return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator />
-      </ThemedView>
+      <View style={[styles.center, { backgroundColor: background }]}>
+        <ActivityIndicator color={primary} />
+      </View>
     );
   }
 
@@ -132,66 +143,88 @@ export function StudentPortalScreen() {
   }
 
   const { portal, record } = state;
+  const progress = portal.balance.granted > 0 ? portal.balance.used / portal.balance.granted : 0;
 
   return (
     <ScrollView
+      style={{ backgroundColor: background }}
       contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
-      <ThemedText type="title">종합 생기부 관리</ThemedText>
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={primary} />}>
+      <ScreenHeader title="종합 생기부 관리" subtitle="담당 컨설턴트와 함께 준비 현황을 확인하세요" />
 
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">담당 컨설턴트</ThemedText>
-        <ThemedText style={styles.cardBody}>
-          {portal.consultant
-            ? `${portal.consultant.name}${portal.consultant.track ? ` · ${portal.consultant.track}` : ''}`
-            : '아직 배정되지 않았어요.'}
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">잔여 회차</ThemedText>
-        <ThemedText style={styles.cardBody}>
-          {portal.balance.remaining}회 남음 (총 {portal.balance.granted}회 중 {portal.balance.used}회
-          사용)
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">생활기록부 제출</ThemedText>
-        {record ? (
-          <>
-            <ThemedText style={styles.cardBody}>{record.file_name}</ThemedText>
-            <ThemedText style={styles.cardMeta}>
-              {new Date(record.uploaded_at).toLocaleString('ko-KR')} 업로드
-            </ThemedText>
-            {record.signedUrl ? (
-              <Pressable onPress={() => Linking.openURL(record.signedUrl as string)}>
-                <ThemedText type="link">내가 올린 파일 열기</ThemedText>
-              </Pressable>
-            ) : null}
-          </>
-        ) : (
-          <ThemedText style={styles.cardBody}>아직 제출한 파일이 없어요.</ThemedText>
-        )}
-        <Pressable
-          style={[styles.button, uploading && styles.buttonDisabled]}
-          onPress={handleUploadRecord}
-          disabled={uploading}>
-          <ThemedText style={styles.buttonText}>
-            {uploading ? '업로드 중...' : record ? '다시 올리기' : '생활기록부 올리기'}
+      <Card style={styles.row}>
+        <Avatar name={portal.consultant?.name ?? '?'} size={48} />
+        <View style={styles.rowText}>
+          <ThemedText style={[styles.label, { color: textSecondary }]}>담당 컨설턴트</ThemedText>
+          <ThemedText style={styles.rowTitle}>
+            {portal.consultant
+              ? `${portal.consultant.name}${portal.consultant.track ? ` · ${portal.consultant.track}` : ''}`
+              : '아직 배정되지 않았어요'}
           </ThemedText>
-        </Pressable>
-      </ThemedView>
+        </View>
+      </Card>
+
+      <Card>
+        <View style={styles.balanceHeader}>
+          <ThemedText style={[styles.label, { color: textSecondary }]}>잔여 회차</ThemedText>
+          <ThemedText style={styles.balanceValue}>
+            <ThemedText style={[styles.balanceValue, { color: primary }]}>
+              {portal.balance.remaining}
+            </ThemedText>
+            회 남음
+          </ThemedText>
+        </View>
+        <ProgressBar progress={progress} />
+        <ThemedText style={[styles.cardMeta, { color: textSecondary }]}>
+          총 {portal.balance.granted}회 중 {portal.balance.used}회 사용
+        </ThemedText>
+      </Card>
+
+      <Card>
+        <ThemedText type="defaultSemiBold">생활기록부 제출</ThemedText>
+        {record ? (
+          <View style={styles.fileRow}>
+            <Ionicons name="document-text-outline" size={20} color={primary} />
+            <View style={styles.rowText}>
+              <ThemedText style={styles.cardBody}>{record.file_name}</ThemedText>
+              <ThemedText style={[styles.cardMeta, { color: textSecondary }]}>
+                {new Date(record.uploaded_at).toLocaleString('ko-KR')} 업로드
+              </ThemedText>
+            </View>
+          </View>
+        ) : (
+          <ThemedText style={[styles.cardBody, { color: textSecondary }]}>아직 제출한 파일이 없어요.</ThemedText>
+        )}
+        {record?.signedUrl ? (
+          <Pressable onPress={() => Linking.openURL(record.signedUrl as string)} hitSlop={4}>
+            <ThemedText type="link" style={styles.linkText}>
+              내가 올린 파일 열기
+            </ThemedText>
+          </Pressable>
+        ) : null}
+        <Button
+          label={uploading ? '업로드 중...' : record ? '다시 올리기' : '생활기록부 올리기'}
+          onPress={handleUploadRecord}
+          disabled={uploading}
+          loading={uploading}
+          size="sm"
+          icon={!uploading ? <Ionicons name="cloud-upload-outline" size={16} color="#fff" /> : undefined}
+          style={styles.uploadButton}
+        />
+      </Card>
 
       {portal.upcoming.length > 0 ? (
-        <ThemedView style={styles.card}>
-          <ThemedText type="subtitle">다음 수업</ThemedText>
+        <Card>
+          <ThemedText type="defaultSemiBold">다음 수업</ThemedText>
           {portal.upcoming.map((item) => (
-            <ThemedText key={item.id} style={styles.cardBody}>
-              {item.lesson_date} · {item.topic ?? '주제 미정'}
-            </ThemedText>
+            <View key={item.id} style={styles.upcomingRow}>
+              <Ionicons name="calendar-outline" size={16} color={textSecondary} />
+              <ThemedText style={styles.cardBody}>
+                {item.lesson_date} · {item.topic ?? '주제 미정'}
+              </ThemedText>
+            </View>
           ))}
-        </ThemedView>
+        </Card>
       ) : null}
 
       <ThemedText type="subtitle" style={styles.sectionTitle}>
@@ -199,7 +232,7 @@ export function StudentPortalScreen() {
       </ThemedText>
 
       {portal.sessions.length === 0 ? (
-        <ThemedText style={styles.cardBody}>아직 공개된 회차 기록이 없어요.</ThemedText>
+        <ThemedText style={[styles.cardBody, { color: textSecondary }]}>아직 공개된 회차 기록이 없어요.</ThemedText>
       ) : (
         portal.sessions.map((session) => (
           <SessionCard
@@ -213,6 +246,18 @@ export function StudentPortalScreen() {
   );
 }
 
+function ProgressBar({ progress }: { progress: number }) {
+  const track = useThemeColor({}, 'surfaceSecondary');
+  const fill = useThemeColor({}, 'primary');
+  const clamped = Math.max(0, Math.min(1, progress));
+
+  return (
+    <View style={[styles.progressTrack, { backgroundColor: track }]}>
+      <View style={[styles.progressFill, { backgroundColor: fill, width: `${clamped * 100}%` }]} />
+    </View>
+  );
+}
+
 function SessionCard({
   session,
   onToggleNextAction,
@@ -220,77 +265,114 @@ function SessionCard({
   session: StudentPortalSession;
   onToggleNextAction: (sessionId: string, itemKey: string, done: boolean) => void;
 }) {
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const primary = useThemeColor({}, 'primary');
+  const border = useThemeColor({}, 'border');
+
   return (
-    <ThemedView style={styles.card}>
-      <ThemedText type="defaultSemiBold">
-        {session.session_round}회차 · {session.lesson_date} · {session.status}
-      </ThemedText>
+    <Card>
+      <View style={styles.sessionHeader}>
+        <ThemedText type="defaultSemiBold">{session.session_round}회차 · {session.lesson_date}</ThemedText>
+        <Badge label={session.status} tone={lessonStatusTone(session.status)} />
+      </View>
       {session.topic ? <ThemedText style={styles.cardBody}>{session.topic}</ThemedText> : null}
       {session.student_summary ? (
-        <ThemedText style={styles.cardBody}>{session.student_summary}</ThemedText>
+        <ThemedText style={[styles.cardBody, { color: textSecondary }]}>{session.student_summary}</ThemedText>
       ) : null}
 
       {session.materials.length > 0 ? (
-        <ThemedView style={styles.subsection}>
-          <ThemedText style={styles.label}>수업 자료</ThemedText>
+        <View style={[styles.subsection, { borderTopColor: border }]}>
+          <ThemedText style={[styles.label, { color: textSecondary }]}>수업 자료</ThemedText>
           {session.materials.map((material) => (
             <Pressable
               key={material.id}
               disabled={!material.url}
-              onPress={() => material.url && Linking.openURL(material.url)}>
-              <ThemedText type={material.url ? 'link' : 'default'} style={styles.cardBody}>
+              onPress={() => material.url && Linking.openURL(material.url)}
+              style={styles.materialRow}>
+              <Ionicons
+                name="document-attach-outline"
+                size={16}
+                color={material.url ? primary : textSecondary}
+              />
+              <ThemedText
+                type={material.url ? 'link' : 'default'}
+                style={[styles.cardBody, !material.url && { color: textSecondary }]}>
                 {material.title}
               </ThemedText>
             </Pressable>
           ))}
-        </ThemedView>
+        </View>
       ) : null}
 
       {session.next_actions.length > 0 ? (
-        <ThemedView style={styles.subsection}>
-          <ThemedText style={styles.label}>다음 수업까지 할 일</ThemedText>
+        <View style={[styles.subsection, { borderTopColor: border }]}>
+          <ThemedText style={[styles.label, { color: textSecondary }]}>다음 수업까지 할 일</ThemedText>
           {session.next_actions.map((item) => (
             <Pressable
               key={item.key}
               style={styles.checkRow}
               onPress={() => onToggleNextAction(session.id, item.key, !item.done)}>
-              <ThemedText style={styles.checkbox}>{item.done ? '☑' : '☐'}</ThemedText>
-              <ThemedText style={[styles.cardBody, item.done && styles.doneText]}>
+              <View
+                style={[
+                  styles.checkbox,
+                  { borderColor: item.done ? primary : border },
+                  item.done && { backgroundColor: primary },
+                ]}>
+                {item.done ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
+              </View>
+              <ThemedText
+                style={[
+                  styles.cardBody,
+                  styles.checkLabel,
+                  item.done && { color: textSecondary, textDecorationLine: 'line-through' },
+                ]}>
                 {item.text}
               </ThemedText>
             </Pressable>
           ))}
-        </ThemedView>
+        </View>
       ) : null}
-    </ThemedView>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  container: { padding: 20, paddingTop: 60, gap: 16, paddingBottom: 60 },
-  card: {
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.25)',
-    borderRadius: 12,
-    padding: 16,
-    gap: 6,
-  },
-  cardBody: { fontSize: 13, opacity: 0.8 },
-  cardMeta: { fontSize: 12, opacity: 0.5 },
-  sectionTitle: { marginTop: 4 },
-  subsection: { marginTop: 6, gap: 4 },
-  label: { fontSize: 12, opacity: 0.5 },
-  checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  checkbox: { fontSize: 16 },
-  doneText: { opacity: 0.4, textDecorationLine: 'line-through' },
-  button: {
-    marginTop: 8,
-    backgroundColor: '#0a7ea4',
-    borderRadius: 8,
-    paddingVertical: 10,
+  container: { padding: Spacing.xl, paddingTop: Spacing.xxxl + 20, gap: Spacing.lg, paddingBottom: 60 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  rowText: { flexShrink: 1, gap: 2 },
+  rowTitle: { fontSize: 15, fontWeight: '700' },
+  sessionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  label: { fontSize: 12, fontWeight: '600' },
+  cardBody: { fontSize: 14 },
+  cardMeta: { fontSize: 12 },
+  linkText: { fontSize: 13, fontWeight: '600' },
+  sectionTitle: { marginTop: Spacing.xs },
+  subsection: { marginTop: Spacing.xs, gap: Spacing.xs, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth },
+  materialRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.6,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  checkLabel: { flexShrink: 1 },
+  fileRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  uploadButton: { marginTop: Spacing.xs, alignSelf: 'flex-start', paddingHorizontal: Spacing.lg },
+  upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  balanceHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  balanceValue: { fontSize: 15, fontWeight: '700' },
+  progressTrack: {
+    height: 8,
+    borderRadius: Radius.pill,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: Radius.pill,
+  },
 });
