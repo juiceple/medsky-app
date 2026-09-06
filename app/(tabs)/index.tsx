@@ -1,63 +1,45 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
+import { StatusMessage } from '@/components/management/status-message';
+import { StudentPortalScreen } from '@/components/management/student-portal-screen';
+import { StudentRosterScreen } from '@/components/management/student-roster-screen';
 import { ThemedView } from '@/components/themed-view';
-import { useAuth } from '@/lib/auth-context';
+import { useManagementViewer } from '@/hooks/use-management-viewer';
 
-const ROLE_LABEL: Record<string, string> = {
-  student: '학생',
-  consultant: '컨설턴트',
-  manager: '매니저',
-  admin: '관리자',
-};
-
+/**
+ * 이 앱은 종합 생기부 관리만 구동한다. 로그인한 사람의 역할에 따라
+ * 학생 마이페이지 또는 컨설턴트/실장 명부를 홈 화면으로 보여준다.
+ */
 export default function HomeScreen() {
-  const { profile, role, user } = useAuth();
-  const displayName = profile?.name ?? user?.email ?? '회원';
+  const viewerState = useManagementViewer();
+
+  if (viewerState.status === 'loading') {
+    return (
+      <ThemedView style={styles.center}>
+        <ActivityIndicator />
+      </ThemedView>
+    );
+  }
+
+  if (viewerState.status === 'error') {
+    return <StatusMessage message={viewerState.message} onRetry={viewerState.reload} />;
+  }
+
+  const { viewer } = viewerState;
+
+  if (viewer.role === 'student') {
+    return <StudentPortalScreen />;
+  }
+
+  if (viewer.role === 'consultant' || viewer.role === 'manager') {
+    return <StudentRosterScreen />;
+  }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">안녕하세요, {displayName}님</ThemedText>
-      {role ? <ThemedText style={styles.roleBadge}>{ROLE_LABEL[role] ?? role}</ThemedText> : null}
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">수업 예약</ThemedText>
-        <ThemedText style={styles.cardBody}>연동 준비 중입니다. 곧 만나보실 수 있어요.</ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">생기부 · 자료</ThemedText>
-        <ThemedText style={styles.cardBody}>연동 준비 중입니다. 곧 만나보실 수 있어요.</ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">공지 · 칼럼</ThemedText>
-        <ThemedText style={styles.cardBody}>연동 준비 중입니다. 곧 만나보실 수 있어요.</ThemedText>
-      </ThemedView>
-    </ScrollView>
+    <StatusMessage message="이 계정은 종합 생기부 관리 대상이 아니에요. 담당 컨설턴트에게 문의해주세요." />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingTop: 60,
-    gap: 16,
-  },
-  roleBadge: {
-    fontSize: 13,
-    opacity: 0.6,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.25)',
-    borderRadius: 12,
-    padding: 16,
-    gap: 6,
-    marginTop: 4,
-  },
-  cardBody: {
-    fontSize: 13,
-    opacity: 0.6,
-  },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
