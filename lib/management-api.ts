@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 import type {
   ChatInboxEntry,
   ChatMessageView,
+  ChatRoom,
+  ChatRoomsSummary,
   ManagementViewer,
   RecordSubmissionView,
   StudentDetail,
@@ -98,15 +100,21 @@ export function setNextActionChecked(input: {
   return postJson('/api/mobile/management/next-action', input);
 }
 
+/** `room` 은 'always'(상시 피드백) 또는 lesson_sessions.id 다. 생략하면 학생 전체 대화를 필터 없이 돌려준다. */
 export function getChatMessages(
-  studentId?: string
+  studentId?: string,
+  room?: ChatRoom
 ): Promise<{ viewerRole: string; messages: ChatMessageView[] }> {
-  const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
-  return request(`/api/mobile/management/chat${query}`);
+  const params = new URLSearchParams();
+  if (studentId) params.set('studentId', studentId);
+  if (room) params.set('room', room);
+  const query = params.toString();
+  return request(`/api/mobile/management/chat${query ? `?${query}` : ''}`);
 }
 
 export function sendChatMessage(input: {
   studentId?: string;
+  room?: ChatRoom;
   body?: string;
   filePath?: string;
   fileName?: string;
@@ -131,6 +139,12 @@ export function getChatFileUrl(messageId: string): Promise<{ signedUrl: string }
 
 export function getChatInbox(): Promise<{ entries: ChatInboxEntry[] }> {
   return request('/api/mobile/management/chat/inbox');
+}
+
+/** 대화 탭 상단 요약 — 상시 피드백 미리보기/안읽음 수와 회차별 메시지 수/안읽음 수. */
+export function getChatRooms(studentId?: string): Promise<ChatRoomsSummary> {
+  const query = studentId ? `?studentId=${encodeURIComponent(studentId)}` : '';
+  return request(`/api/mobile/management/chat/rooms${query}`);
 }
 
 export function getStudents(): Promise<{ students: StudentSummary[] }> {
