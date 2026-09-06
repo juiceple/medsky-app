@@ -1,12 +1,17 @@
 import { ActivityIndicator, StyleSheet } from 'react-native';
 
 import { ChatInboxScreen } from '@/components/management/chat-inbox-screen';
-import { ChatThread } from '@/components/management/chat-thread';
 import { StatusMessage } from '@/components/management/status-message';
+import { StudentChatScreen } from '@/components/management/student-chat-screen';
 import { ThemedView } from '@/components/themed-view';
 import { useManagementViewer } from '@/hooks/use-management-viewer';
 
-/** 학생은 담당 컨설턴트와의 채팅방을, 컨설턴트/실장은 담당 학생별 채팅 목록을 본다. */
+/**
+ * 학생은 상시 피드백/회차별 대화방(StudentChatScreen, 2a)을, 컨설턴트/실장은 담당
+ * 학생별 채팅 목록을 본다. 컨설턴트가 특정 학생과 나누는 대화는 여전히 기존
+ * 단일 스레드(ChatThread, app/chat/[studentId].tsx)로 연다 — 회차 분리는 학생
+ * 본인 화면에만 적용된다.
+ */
 export default function ChatScreen() {
   const viewerState = useManagementViewer();
 
@@ -25,7 +30,7 @@ export default function ChatScreen() {
   const { viewer } = viewerState;
 
   if (viewer.role === 'student' && viewer.studentId) {
-    return <ChatThread studentId={viewer.studentId} />;
+    return <StudentChatScreen />;
   }
 
   if (viewer.role === 'consultant' || viewer.role === 'manager') {

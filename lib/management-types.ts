@@ -51,6 +51,8 @@ export type StudentPortalSession = {
   display_name: string | null;
   materials: LessonMaterial[];
   next_actions: NextActionItem[];
+  /** 처음으로 학생에게 공개된 시각. 상시 피드백 방에 "N회차 기록이 등록됐어요" 안내줄을 끼워 넣는 위치로 쓴다. */
+  shared_at: string | null;
 };
 
 export type StudentRecord = {
@@ -71,7 +73,7 @@ export type StudentPortalData = {
   balance: CreditBalance;
   recordSubmission: { file_name: string; uploaded_at: string } | null;
   sessions: StudentPortalSession[];
-  upcoming: { id: string; lesson_date: string; topic: string | null }[];
+  upcoming: { id: string; session_round: number; lesson_date: string; topic: string | null }[];
 };
 
 export type RecordSubmissionView = {
@@ -91,6 +93,8 @@ export type ChatSenderRole = 'student' | 'consultant';
 
 export type ChatMessageView = {
   id: string;
+  /** 이 메시지가 속한 회차 대화방. null 이면 상시 피드백 방. */
+  sessionId: string | null;
   senderRole: ChatSenderRole;
   isMine: boolean;
   body: string | null;
@@ -99,6 +103,27 @@ export type ChatMessageView = {
   fileType: string | null;
   hasFile: boolean;
   createdAt: string;
+};
+
+/** 상시 피드백 방을 가리키는 room 파라미터 값. */
+export const CHAT_ALWAYS_ROOM = 'always' as const;
+export type ChatRoom = typeof CHAT_ALWAYS_ROOM | string;
+
+export type ChatAlwaysRoomSummary = {
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  unreadCount: number;
+};
+
+export type ChatSessionRoomSummary = {
+  messageCount: number;
+  unreadCount: number;
+  lastMessageAt: string | null;
+};
+
+export type ChatRoomsSummary = {
+  always: ChatAlwaysRoomSummary;
+  sessions: Record<string, ChatSessionRoomSummary>;
 };
 
 export type ChatInboxEntry = {
