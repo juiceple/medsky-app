@@ -1,11 +1,17 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Avatar } from '@/components/ui/avatar';
+import { Badge, lessonStatusTone } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Spacing } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { getStudentDetail } from '@/lib/management-api';
 import type { StudentDetail } from '@/lib/management-types';
 
@@ -19,6 +25,9 @@ export default function StudentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
+  const background = useThemeColor({}, 'background');
+  const primary = useThemeColor({}, 'primary');
+  const textSecondary = useThemeColor({}, 'textSecondary');
 
   const load = useCallback(async () => {
     try {
@@ -40,9 +49,9 @@ export default function StudentDetailScreen() {
 
   if (state.status === 'loading') {
     return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator />
-      </ThemedView>
+      <View style={[styles.center, { backgroundColor: background }]}>
+        <ActivityIndicator color={primary} />
+      </View>
     );
   }
 
@@ -55,30 +64,39 @@ export default function StudentDetailScreen() {
   return (
     <>
       <Stack.Screen options={{ title: student.student_name }} />
-      <ScrollView contentContainerStyle={styles.container}>
-        <ThemedText type="title">{student.student_name}</ThemedText>
-        <ThemedText style={styles.cardBody}>
-          {student.service_type ?? '상품 미배정'} · {student.status ?? '상태 미확인'}
-        </ThemedText>
-        <ThemedText style={styles.cardBody}>
-          잔여 {student.balance.remaining}회 (총 {student.balance.granted}회 중{' '}
-          {student.balance.used}회 사용)
-        </ThemedText>
+      <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <Avatar name={student.student_name} size={56} />
+          <View style={styles.headerText}>
+            <ThemedText style={styles.name}>{student.student_name}</ThemedText>
+            <ThemedText style={[styles.cardBody, { color: textSecondary }]}>
+              {student.service_type ?? '상품 미배정'} · {student.status ?? '상태 미확인'}
+            </ThemedText>
+          </View>
+        </View>
 
-        <Pressable
-          style={styles.button}
+        <Card style={styles.row}>
+          <Ionicons name="wallet-outline" size={20} color={primary} />
+          <ThemedText style={styles.cardBody}>
+            잔여 <ThemedText style={[styles.cardBody, styles.strong, { color: primary }]}>{student.balance.remaining}</ThemedText>회
+            {'  '}(총 {student.balance.granted}회 중 {student.balance.used}회 사용)
+          </ThemedText>
+        </Card>
+
+        <Button
+          label="채팅 열기"
+          icon={<Ionicons name="chatbubble-ellipses-outline" size={17} color="#fff" />}
           onPress={() =>
             router.push({ pathname: '/chat/[studentId]', params: { studentId: student.id } })
-          }>
-          <ThemedText style={styles.buttonText}>채팅 열기</ThemedText>
-        </Pressable>
+          }
+        />
 
-        <ThemedView style={styles.card}>
-          <ThemedText type="subtitle">생활기록부 제출</ThemedText>
+        <Card>
+          <ThemedText type="defaultSemiBold">생활기록부 제출</ThemedText>
           {recordSubmission ? (
             <>
               <ThemedText style={styles.cardBody}>{recordSubmission.fileName}</ThemedText>
-              <ThemedText style={styles.cardMeta}>
+              <ThemedText style={[styles.cardMeta, { color: textSecondary }]}>
                 {new Date(recordSubmission.uploadedAt).toLocaleString('ko-KR')} 업로드
               </ThemedText>
               {recordSubmission.signedUrl ? (
@@ -88,38 +106,47 @@ export default function StudentDetailScreen() {
               ) : null}
             </>
           ) : (
-            <ThemedText style={styles.cardBody}>아직 제출한 파일이 없어요.</ThemedText>
+            <ThemedText style={[styles.cardBody, { color: textSecondary }]}>아직 제출한 파일이 없어요.</ThemedText>
           )}
-        </ThemedView>
+        </Card>
 
         <ThemedText type="subtitle" style={styles.sectionTitle}>
           회차 기록
         </ThemedText>
 
         {sessions.length === 0 ? (
-          <ThemedText style={styles.cardBody}>아직 등록된 회차가 없어요.</ThemedText>
+          <ThemedText style={[styles.cardBody, { color: textSecondary }]}>아직 등록된 회차가 없어요.</ThemedText>
         ) : (
           sessions.map((session) => (
-            <ThemedView key={session.id} style={styles.card}>
-              <ThemedText type="defaultSemiBold">
-                {session.session_round}회차 · {session.lesson_date} · {session.status}
-              </ThemedText>
-              {session.topic ? (
-                <ThemedText style={styles.cardBody}>{session.topic}</ThemedText>
-              ) : null}
+            <Card key={session.id}>
+              <View style={styles.sessionHeader}>
+                <ThemedText type="defaultSemiBold">
+                  {session.session_round}회차 · {session.lesson_date}
+                </ThemedText>
+                <Badge label={session.status} tone={lessonStatusTone(session.status)} />
+              </View>
+              {session.topic ? <ThemedText style={styles.cardBody}>{session.topic}</ThemedText> : null}
               {session.student_summary ? (
                 <ThemedText style={styles.cardBody}>학생 공유: {session.student_summary}</ThemedText>
               ) : null}
               {session.internal_note ? (
-                <ThemedText style={styles.cardBody}>내부 메모: {session.internal_note}</ThemedText>
+                <View style={[styles.noteBox, { backgroundColor: `${primary}0D` }]}>
+                  <Ionicons name="lock-closed-outline" size={13} color={primary} />
+                  <ThemedText style={[styles.cardBody, styles.noteText]}>
+                    내부 메모: {session.internal_note}
+                  </ThemedText>
+                </View>
               ) : null}
               {session.next_action ? (
                 <ThemedText style={styles.cardBody}>다음 할 일: {session.next_action}</ThemedText>
               ) : null}
               {!session.is_shared_with_student ? (
-                <ThemedText style={styles.cardMeta}>학생에게 비공개</ThemedText>
+                <View style={styles.privateRow}>
+                  <Ionicons name="eye-off-outline" size={13} color={textSecondary} />
+                  <ThemedText style={[styles.cardMeta, { color: textSecondary }]}>학생에게 비공개</ThemedText>
+                </View>
               ) : null}
-            </ThemedView>
+            </Card>
           ))
         )}
       </ScrollView>
@@ -129,22 +156,23 @@ export default function StudentDetailScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  container: { padding: 20, paddingTop: 20, gap: 12, paddingBottom: 60 },
-  card: {
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.25)',
-    borderRadius: 12,
-    padding: 16,
+  container: { padding: Spacing.xl, gap: Spacing.lg, paddingBottom: 60 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  headerText: { gap: 2, flexShrink: 1 },
+  name: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  cardBody: { fontSize: 14 },
+  cardMeta: { fontSize: 12 },
+  strong: { fontWeight: '700' },
+  sectionTitle: { marginTop: Spacing.xs },
+  sessionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  noteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 6,
+    borderRadius: 10,
+    padding: Spacing.sm,
   },
-  cardBody: { fontSize: 13, opacity: 0.8 },
-  cardMeta: { fontSize: 12, opacity: 0.5 },
-  sectionTitle: { marginTop: 4 },
-  button: {
-    backgroundColor: '#0a7ea4',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  noteText: { flexShrink: 1 },
+  privateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });

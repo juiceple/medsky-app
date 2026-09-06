@@ -1,11 +1,17 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { Spacing } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { getStudents } from '@/lib/management-api';
 import type { StudentSummary } from '@/lib/management-types';
 
@@ -19,6 +25,10 @@ export function StudentRosterScreen() {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
+  const background = useThemeColor({}, 'background');
+  const primary = useThemeColor({}, 'primary');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const textTertiary = useThemeColor({}, 'textTertiary');
 
   const load = useCallback(async () => {
     try {
@@ -46,9 +56,9 @@ export function StudentRosterScreen() {
 
   if (state.status === 'loading') {
     return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator />
-      </ThemedView>
+      <View style={[styles.center, { backgroundColor: background }]}>
+        <ActivityIndicator color={primary} />
+      </View>
     );
   }
 
@@ -58,28 +68,42 @@ export function StudentRosterScreen() {
 
   return (
     <FlatList
+      style={{ backgroundColor: background }}
       data={state.students}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      ListHeaderComponent={<ThemedText type="title">담당 학생</ThemedText>}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={primary} />}
+      ListHeaderComponent={
+        <ScreenHeader
+          title="담당 학생"
+          subtitle={`${state.students.length}명을 관리하고 있어요`}
+        />
+      }
+      ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
       renderItem={({ item }) => (
         <Pressable
-          style={styles.card}
           onPress={() => router.push({ pathname: '/student/[id]', params: { id: item.id } })}>
-          <ThemedText type="defaultSemiBold">{item.student_name}</ThemedText>
-          <ThemedText style={styles.cardBody}>
-            {item.service_type ?? '상품 미배정'} · {item.status ?? '상태 미확인'}
-          </ThemedText>
-          <ThemedText style={styles.cardMeta}>
-            잔여 {item.balance.remaining}회
-            {item.consultantName ? ` · 담당 ${item.consultantName}` : ''}
-            {item.lastLessonDate ? ` · 최근 수업 ${item.lastLessonDate}` : ''}
-          </ThemedText>
+          {({ pressed }) => (
+            <Card style={[styles.card, pressed && styles.cardPressed]}>
+              <Avatar name={item.student_name} size={44} />
+              <View style={styles.cardBody}>
+                <View style={styles.cardTitleRow}>
+                  <ThemedText style={styles.name}>{item.student_name}</ThemedText>
+                  {item.service_type ? <Badge label={item.service_type} tone="primary" /> : null}
+                </View>
+                <ThemedText style={[styles.meta, { color: textSecondary }]} numberOfLines={1}>
+                  잔여 {item.balance.remaining}회
+                  {item.consultantName ? ` · 담당 ${item.consultantName}` : ''}
+                  {item.lastLessonDate ? ` · 최근 수업 ${item.lastLessonDate}` : ''}
+                </ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={textTertiary} />
+            </Card>
+          )}
         </Pressable>
       )}
       ListEmptyComponent={
-        <ThemedText style={styles.cardBody}>담당하는 학생이 아직 없어요.</ThemedText>
+        <ThemedText style={[styles.empty, { color: textSecondary }]}>담당하는 학생이 아직 없어요.</ThemedText>
       }
     />
   );
@@ -87,15 +111,12 @@ export function StudentRosterScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  container: { padding: 20, paddingTop: 60, gap: 12 },
-  card: {
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.25)',
-    borderRadius: 12,
-    padding: 16,
-    gap: 4,
-    marginTop: 4,
-  },
-  cardBody: { fontSize: 13, opacity: 0.8 },
-  cardMeta: { fontSize: 12, opacity: 0.5 },
+  container: { padding: Spacing.xl, paddingTop: Spacing.xxxl + 20, paddingBottom: 60, flexGrow: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  cardPressed: { opacity: 0.85 },
+  cardBody: { flex: 1, gap: 4 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  name: { fontSize: 16, fontWeight: '700' },
+  meta: { fontSize: 13 },
+  empty: { textAlign: 'center', marginTop: 40, fontSize: 14 },
 });
