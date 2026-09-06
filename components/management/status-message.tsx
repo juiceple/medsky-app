@@ -1,7 +1,12 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Button } from '@/components/ui/button';
+import { Spacing } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 export function StatusMessage({
   message,
@@ -10,13 +15,14 @@ export function StatusMessage({
   message: string;
   onRetry?: () => void;
 }) {
+  const iconColor = useThemeColor({}, 'textTertiary');
+
   return (
     <ThemedView style={styles.container}>
+      <Ionicons name="alert-circle-outline" size={40} color={iconColor} />
       <ThemedText style={styles.message}>{message}</ThemedText>
       {onRetry ? (
-        <Pressable style={styles.retryButton} onPress={onRetry}>
-          <ThemedText style={styles.retryText}>다시 시도</ThemedText>
-        </Pressable>
+        <Button label="다시 시도" onPress={onRetry} variant="outline" size="sm" fullWidth={false} />
       ) : null}
     </ThemedView>
   );
@@ -27,21 +33,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    gap: 12,
+    padding: Spacing.xxl,
+    gap: Spacing.lg,
   },
   message: {
     textAlign: 'center',
     opacity: 0.7,
-  },
-  retryButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.4)',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-  },
-  retryText: {
-    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

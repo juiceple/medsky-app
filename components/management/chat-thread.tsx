@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,11 +12,12 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
+  View,
 } from 'react-native';
 
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Radius, Spacing } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   createChatUploadTicket,
@@ -42,7 +44,16 @@ export function ChatThread({ studentId }: { studentId?: string }) {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const focused = useRef(true);
-  const textColor = useThemeColor({}, 'text');
+
+  const background = useThemeColor({}, 'background');
+  const surface = useThemeColor({}, 'surface');
+  const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
+  const border = useThemeColor({}, 'border');
+  const primary = useThemeColor({}, 'primary');
+  const primaryMuted = useThemeColor({}, 'primaryMuted');
+  const text = useThemeColor({}, 'text');
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  const textTertiary = useThemeColor({}, 'textTertiary');
 
   const load = useCallback(async () => {
     try {
@@ -131,9 +142,9 @@ export function ChatThread({ studentId }: { studentId?: string }) {
 
   if (state.status === 'loading') {
     return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator />
-      </ThemedView>
+      <View style={[styles.center, { backgroundColor: background }]}>
+        <ActivityIndicator color={primary} />
+      </View>
     );
   }
 
@@ -141,9 +152,11 @@ export function ChatThread({ studentId }: { studentId?: string }) {
     return <StatusMessage message={state.message} onRetry={load} />;
   }
 
+  const canSend = !!draft.trim() && !sending;
+
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={[styles.flex, { backgroundColor: background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}>
       <FlatList
@@ -152,48 +165,75 @@ export function ChatThread({ studentId }: { studentId?: string }) {
         inverted
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <ThemedView
-            style={[styles.bubble, item.isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-            {item.body ? <ThemedText style={styles.bubbleText}>{item.body}</ThemedText> : null}
+          <View
+            style={[
+              styles.bubble,
+              item.isMine
+                ? [styles.bubbleMine, { backgroundColor: primary }]
+                : [styles.bubbleTheirs, { backgroundColor: surfaceSecondary }],
+            ]}>
+            {item.body ? (
+              <ThemedText style={[styles.bubbleText, { color: item.isMine ? '#fff' : text }]}>
+                {item.body}
+              </ThemedText>
+            ) : null}
             {item.hasFile ? (
-              <Pressable onPress={() => handleOpenFile(item.id)}>
-                <ThemedText type="link" style={styles.bubbleText}>
-                  📎 {item.fileName ?? '첨부파일'}
+              <Pressable style={styles.fileChip} onPress={() => handleOpenFile(item.id)}>
+                <Ionicons
+                  name="document-attach-outline"
+                  size={15}
+                  color={item.isMine ? '#fff' : primary}
+                />
+                <ThemedText
+                  style={[styles.bubbleText, styles.fileChipText, { color: item.isMine ? '#fff' : primary }]}>
+                  {item.fileName ?? '첨부파일'}
                 </ThemedText>
               </Pressable>
             ) : null}
-            <ThemedText style={styles.bubbleTime}>
+            <ThemedText
+              style={[
+                styles.bubbleTime,
+                { color: item.isMine ? 'rgba(255,255,255,0.75)' : textTertiary },
+              ]}>
               {new Date(item.createdAt).toLocaleTimeString('ko-KR', {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
             </ThemedText>
-          </ThemedView>
+          </View>
         )}
         ListEmptyComponent={
-          <ThemedText style={styles.emptyText}>아직 대화가 없어요. 먼저 메시지를 보내보세요.</ThemedText>
+          <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
+            아직 대화가 없어요. 먼저 메시지를 보내보세요.
+          </ThemedText>
         }
       />
 
-      <ThemedView style={styles.inputRow}>
-        <Pressable style={styles.attachButton} onPress={handleAttach} disabled={sending}>
-          <ThemedText style={styles.attachButtonText}>+</ThemedText>
+      <View style={[styles.inputRow, { backgroundColor: surface, borderTopColor: border }]}>
+        <Pressable
+          style={[styles.attachButton, { backgroundColor: surfaceSecondary }]}
+          onPress={handleAttach}
+          disabled={sending}>
+          <Ionicons name="add" size={22} color={textSecondary} />
         </Pressable>
         <TextInput
-          style={[styles.input, { color: textColor }]}
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
           value={draft}
           onChangeText={setDraft}
           placeholder="메시지 입력"
-          placeholderTextColor="rgba(128,128,128,0.7)"
+          placeholderTextColor={textTertiary}
           multiline
         />
         <Pressable
-          style={[styles.sendButton, (!draft.trim() || sending) && styles.sendButtonDisabled]}
+          style={[
+            styles.sendButton,
+            { backgroundColor: canSend ? primary : primaryMuted },
+          ]}
           onPress={handleSend}
-          disabled={!draft.trim() || sending}>
-          <ThemedText style={styles.sendButtonText}>전송</ThemedText>
+          disabled={!canSend}>
+          <Ionicons name="arrow-up" size={20} color={canSend ? '#fff' : primary} />
         </Pressable>
-      </ThemedView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -201,58 +241,54 @@ export function ChatThread({ studentId }: { studentId?: string }) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 16, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
-  emptyText: { textAlign: 'center', opacity: 0.6, marginTop: 40 },
+  list: { padding: Spacing.lg, gap: Spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
+  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 14 },
   bubble: {
     maxWidth: '80%',
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
     gap: 4,
   },
   bubbleMine: {
     alignSelf: 'flex-end',
-    backgroundColor: 'rgba(10,126,164,0.15)',
+    borderBottomRightRadius: 4,
   },
   bubbleTheirs: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(128,128,128,0.12)',
+    borderBottomLeftRadius: 4,
   },
-  bubbleText: { fontSize: 14 },
-  bubbleTime: { fontSize: 10, opacity: 0.5 },
+  bubbleText: { fontSize: 14.5, lineHeight: 20 },
+  bubbleTime: { fontSize: 10, marginTop: 2 },
+  fileChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  fileChipText: { textDecorationLine: 'underline' },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 8,
-    padding: 12,
+    gap: Spacing.sm,
+    padding: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(128,128,128,0.3)',
   },
   attachButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.4)',
   },
-  attachButtonText: { fontSize: 18, lineHeight: 20 },
   input: {
     flex: 1,
-    minHeight: 36,
+    minHeight: 40,
     maxHeight: 120,
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.3)',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    fontSize: 15,
   },
   sendButton: {
-    backgroundColor: '#0a7ea4',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sendButtonDisabled: { opacity: 0.5 },
-  sendButtonText: { color: '#fff', fontWeight: '600' },
 });
