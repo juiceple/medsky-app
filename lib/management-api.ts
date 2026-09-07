@@ -4,10 +4,15 @@ import type {
   ChatMessageView,
   ChatRoom,
   ChatRoomsSummary,
+  LessonSessionSaveInput,
   ManagementViewer,
   RecordSubmissionView,
+  ReservationSaveInput,
+  ReservationStatus,
+  ReservationView,
   StudentDetail,
   StudentPortalData,
+  StudentStatus,
   StudentSummary,
   UploadTicket,
 } from './management-types';
@@ -63,6 +68,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 function postJson<T>(path: string, input: unknown): Promise<T> {
   return request<T>(path, { method: 'POST', body: JSON.stringify(input) });
+}
+
+function deleteRequest<T>(path: string): Promise<T> {
+  return request<T>(path, { method: 'DELETE' });
 }
 
 export function getViewer(): Promise<ManagementViewer> {
@@ -153,6 +162,84 @@ export function getStudents(): Promise<{ students: StudentSummary[] }> {
 
 export function getStudentDetail(studentId: string): Promise<StudentDetail> {
   return request(`/api/mobile/management/students/${encodeURIComponent(studentId)}`);
+}
+
+/** 컨설턴트/실장 전용 내부 메모 저장. 학생에게는 노출되지 않는다. */
+export function saveInternalMemo(
+  studentId: string,
+  internalMemo: string
+): Promise<{ ok: true; message: string }> {
+  return postJson(
+    `/api/mobile/management/students/${encodeURIComponent(studentId)}/memo`,
+    { internalMemo }
+  );
+}
+
+/** 진행 상태(카톡방 개설 등) 변경. */
+export function updateStudentStatus(
+  studentId: string,
+  status: StudentStatus
+): Promise<{ ok: true; message: string }> {
+  return postJson(
+    `/api/mobile/management/students/${encodeURIComponent(studentId)}/status`,
+    { status }
+  );
+}
+
+/** 회차 기록 생성/수정 — 자료 링크, 학생 공개 요약, 다음 할 일, 내부 메모, 회차 원장 동기화까지 한 번에 처리한다. */
+export function saveLessonSession(
+  input: LessonSessionSaveInput
+): Promise<{ ok: true; sessionId: string; message: string }> {
+  return postJson('/api/mobile/management/sessions', input);
+}
+
+export function deleteLessonSession(
+  studentId: string,
+  sessionId: string
+): Promise<{ ok: true; message: string }> {
+  return deleteRequest(
+    `/api/mobile/management/sessions/${encodeURIComponent(sessionId)}?studentId=${encodeURIComponent(studentId)}`
+  );
+}
+
+/** 학생 한 명의 수업 예약(다음 수업 일정) 목록. */
+export function getReservations(studentId: string): Promise<{ reservations: ReservationView[] }> {
+  return request(
+    `/api/mobile/management/students/${encodeURIComponent(studentId)}/reservations`
+  );
+}
+
+/** 수업 예약 등록/일정 변경(reservationId 를 넘기면 그 예약을 옮긴다). */
+export function bookReservation(
+  studentId: string,
+  input: ReservationSaveInput
+): Promise<{ ok: true; message: string }> {
+  return postJson(
+    `/api/mobile/management/students/${encodeURIComponent(studentId)}/reservations`,
+    input
+  );
+}
+
+/** 예약 결과 처리 — 완료/노쇼면 회차 기록을 만들고 차감하며, 취소면 되돌린다. */
+export function settleReservation(
+  studentId: string,
+  reservationId: string,
+  status: ReservationStatus
+): Promise<{ ok: true; message: string }> {
+  return postJson(
+    `/api/mobile/management/students/${encodeURIComponent(studentId)}/reservations/${encodeURIComponent(reservationId)}/settle`,
+    { status }
+  );
+}
+
+/** 예약 삭제. 회차 기록이 이미 붙은 예약은 서버가 거부한다(먼저 취소 처리해야 한다). */
+export function deleteReservation(
+  studentId: string,
+  reservationId: string
+): Promise<{ ok: true; message: string }> {
+  return deleteRequest(
+    `/api/mobile/management/students/${encodeURIComponent(studentId)}/reservations/${encodeURIComponent(reservationId)}`
+  );
 }
 
 /**
