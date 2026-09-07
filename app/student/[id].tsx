@@ -2,9 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ReservationPanel } from '@/components/management/reservation-panel';
 import { StatusMessage } from '@/components/management/status-message';
+import { StudentInfoCard } from '@/components/management/student-info-card';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge, lessonStatusTone } from '@/components/ui/badge';
@@ -12,19 +14,20 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Spacing } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { getStudentDetail } from '@/lib/management-api';
-import type { StudentDetail } from '@/lib/management-types';
+import { deleteLessonSession, getStudentDetail } from '@/lib/management-api';
+import type { LessonSessionFull, StudentDetail } from '@/lib/management-types';
 
 type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ready'; detail: StudentDetail };
 
-/** 컨설턴트/실장이 보는 학생 상세 — 회차 내부 메모까지 포함한다. */
+/** 컨설턴트/실장이 보는 학생 상세 — 인적사항·진행 상태·내부 메모·수업 예약·회차 기록까지 전부 다룬다. */
 export default function StudentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const background = useThemeColor({}, 'background');
   const primary = useThemeColor({}, 'primary');
   const textSecondary = useThemeColor({}, 'textSecondary');
@@ -61,6 +64,51 @@ export default function StudentDetailScreen() {
 
   const { student, sessions, recordSubmission } = state.detail;
 
+  const nextRoundHint =
+    sessions.length > 0 ? Math.max(...sessions.map((s) => s.session_round)) + 1 : 1;
+
+  function openSessionEditor(session: LessonSessionFull) {
+    router.push({
+      pathname: '/session/[sessionId]',
+      params: {
+        sessionId: session.id,
+        studentId: student.id,
+        lessonDate: session.lesson_date,
+        sessionRound: String(session.session_round),
+        deductedRound: String(session.deducted_round),
+        status: session.status,
+        topic: session.topic ?? '',
+        studentSummary: session.student_summary ?? '',
+        internalNote: session.internal_note ?? '',
+        nextAction: session.next_action ?? '',
+        isSharedWithStudent: session.is_shared_with_student ? '1' : '0',
+        displayName: session.display_name ?? '',
+        materials: JSON.stringify(session.materials ?? []),
+      },
+    });
+  }
+
+  function handleDeleteSession(session: LessonSessionFull) {
+    Alert.alert('회차 기록을 삭제할까요?', '되돌릴 수 없습니다.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingId(session.id);
+          try {
+            await deleteLessonSession(student.id, session.id);
+            await load();
+          } catch (error) {
+            Alert.alert('삭제 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <>
       <Stack.Screen options={{ title: student.student_name }} />
@@ -91,6 +139,8 @@ export default function StudentDetailScreen() {
           }
         />
 
+        <StudentInfoCard student={student} onSaved={load} />
+
         <Card>
           <ThemedText type="defaultSemiBold">생활기록부 제출</ThemedText>
           {recordSubmission ? (
@@ -109,6 +159,8 @@ export default function StudentDetailScreen() {
             <ThemedText style={[styles.cardBody, { color: textSecondary }]}>아직 제출한 파일이 없어요.</ThemedText>
           )}
         </Card>
+
+        <ReservationPanel studentId={student.id} nextRoundHint={nextRoundHint} onChanged={load} />
 
         <ThemedText type="subtitle" style={styles.sectionTitle}>
           회차 기록
@@ -146,6 +198,57 @@ export default function StudentDetailScreen() {
                   <ThemedText style={[styles.cardMeta, { color: textSecondary }]}>학생에게 비공개</ThemedText>
                 </View>
               ) : null}
+
+              {session.materials.length > 0 ? (
+                <View style={styles.materialsBox}>
+                  {session.materials.map((material) => (
+                    <Pressable
+                      key={material.id}
+                      style={styles.materialRow}
+                      disabled={!material.url}
+                      onPress={() => material.url && Linking.openURL(material.url)}>
+                      <Ionicons
+                        name="document-attach-outline"
+                        size={15}
+                        color={material.url ? primary : textSecondary}
+                      />
+                      <View style={styles.materialTextWrap}>
+                        <ThemedText
+                          type={material.url ? 'link' : 'default'}
+                          style={styles.cardBody}>
+                          {material.title}
+                        </ThemedText>
+                        {material.description ? (
+                          <ThemedText style={[styles.cardMeta, { color: textSecondary }]}>
+                            {material.description}
+                          </ThemedText>
+                        ) : null}
+                      </View>
+                      {!material.is_shared_with_student ? (
+                        <Ionicons name="eye-off-outline" size={13} color={textSecondary} />
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
+              <View style={styles.sessionActions}>
+                <Button
+                  label="수정"
+                  size="sm"
+                  variant="outline"
+                  fullWidth={false}
+                  onPress={() => openSessionEditor(session)}
+                />
+                <Button
+                  label="삭제"
+                  size="sm"
+                  variant="ghost"
+                  fullWidth={false}
+                  loading={deletingId === session.id}
+                  onPress={() => handleDeleteSession(session)}
+                />
+              </View>
             </Card>
           ))
         )}
@@ -175,4 +278,8 @@ const styles = StyleSheet.create({
   },
   noteText: { flexShrink: 1 },
   privateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  materialsBox: { gap: Spacing.xs, marginTop: Spacing.xs },
+  materialRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  materialTextWrap: { flex: 1, gap: 2 },
+  sessionActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
 });

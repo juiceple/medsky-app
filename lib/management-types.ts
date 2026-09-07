@@ -55,16 +55,33 @@ export type StudentPortalSession = {
   shared_at: string | null;
 };
 
+export const STUDENT_STATUSES = [
+  '선생님 배정 전',
+  '카톡 방 생성 전',
+  '카톡 방 생성 완료',
+  '카톡 방 입장 완료',
+  '진행 정지',
+] as const;
+export type StudentStatus = (typeof STUDENT_STATUSES)[number];
+
 export type StudentRecord = {
   id: string;
   student_name: string;
+  student_phone: string | null;
+  student_email: string | null;
+  parent_name: string | null;
+  parent_phone: string | null;
   service_type: string | null;
   track: string | null;
   status: string | null;
   grade_level: string | null;
   school_name: string | null;
+  school_gpa: string | null;
+  mock_exam_grade: string | null;
   desired_university: string | null;
   desired_major: string | null;
+  /** 컨설턴트/실장 전용 메모. 학생 화면에서는 절대 렌더링하지 않는다. */
+  internal_memo: string | null;
 };
 
 export type StudentPortalData = {
@@ -166,4 +183,71 @@ export type StudentDetail = {
     uploadedAt: string;
     signedUrl: string | null;
   } | null;
+};
+
+/** 회차 기록 저장(POST /api/mobile/management/sessions) 요청 바디의 자료 링크 한 건. */
+export type LessonMaterialInput = {
+  title: string;
+  url: string | null;
+  description: string | null;
+  isSharedWithStudent: boolean;
+};
+
+/**
+ * 회차 기록 생성/수정 요청 바디.
+ * sessionId 가 있으면 기존 기록 수정, 없으면 reservationId 로 새 기록을 만든다
+ * (회차 기록은 반드시 예약과 연계된다 — 웹의 saveLessonSessionAction 과 같은 제약).
+ */
+export type LessonSessionSaveInput = {
+  studentId: string;
+  sessionId?: string | null;
+  reservationId?: string | null;
+  lessonDate: string;
+  sessionRound: number;
+  deductedRound: number;
+  status: LessonStatus;
+  topic: string | null;
+  studentSummary: string | null;
+  internalNote: string | null;
+  nextAction: string | null;
+  isSharedWithStudent: boolean;
+  displayName: string | null;
+  materials: LessonMaterialInput[];
+};
+
+export const RESERVATION_STATUSES = [
+  '대기',
+  '확정',
+  '취소',
+  '예약자 취소',
+  '변경',
+  '예약자 변경',
+  '완료',
+  '노쇼',
+] as const;
+export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
+
+/** 학생 한 명의 수업 예약 한 건. GET /api/mobile/management/students/:id/reservations. */
+export type ReservationView = {
+  id: string;
+  lessonDate: string;
+  lessonTime: string | null;
+  durationMinutes: number;
+  deductedRound: number;
+  status: ReservationStatus;
+  title: string | null;
+  memo: string | null;
+  lessonSessionId: string | null;
+  consultantName: string | null;
+};
+
+/** 예약 등록/일정 변경 요청 바디. reservationId 가 있으면 그 예약을 옮긴다. */
+export type ReservationSaveInput = {
+  reservationId?: string | null;
+  lessonDate: string;
+  lessonTime: string;
+  deductedRound?: number;
+  durationMinutes?: number;
+  title: string;
+  memo?: string | null;
 };

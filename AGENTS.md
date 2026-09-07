@@ -24,7 +24,14 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before 
     마이페이지 탭 (`profile.tsx`). 홈·채팅 탭은 `useManagementViewer()`(역할: 학생 /
     컨설턴트·실장 / 해당없음)에 따라 서로 다른 화면을 그린다 — 학생이면 자기
     마이페이지·채팅방을, 컨설턴트/실장이면 담당 학생 명부·채팅 목록을 보여준다.
-  - `app/student/[id].tsx` — 컨설턴트/실장이 보는 학생 상세(회차 내부 메모 포함).
+  - `app/student/[id].tsx` — 컨설턴트/실장이 보는 학생 상세. 인적사항·진행 상태·내부
+    메모(`StudentInfoCard`), 수업 예약 등록/완료·노쇼·취소 처리(`ReservationPanel`),
+    회차 기록(자료 링크 포함) 목록·수정·삭제까지 웹 `/consultant/management/[studentId]`
+    와 동일한 기능을 담는다.
+  - `app/session/[sessionId].tsx` — 회차 기록 작성/수정 화면(모달). `sessionId`가
+    `'new'`면 쿼리 파라미터로 받은 `reservationId`에 새 기록을 만들고, 아니면 기존
+    기록을 고친다. 웹의 `LessonSessionForm`과 같은 필드(주제/학생 공개 요약/다음
+    할 일/내부 메모/자료 링크/학생 공개 여부)를 담는다.
   - `app/chat/[studentId].tsx` — 컨설턴트/실장이 특정 학생과의 채팅방을 여는 화면.
     학생 본인의 채팅방은 `(tabs)/chat.tsx` 안에서 바로 연다.
   - `app/_layout.tsx` — `Stack.Protected`로 세션 유무에 따라 `(tabs)`+상세 화면들
@@ -51,7 +58,9 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before 
 - `hooks/use-management-viewer.ts` — 로그인한 계정의 종합 생기부 관리 역할
   (student/consultant/manager/none)을 가져오는 훅. 홈·채팅 탭이 공유한다.
 - `components/management/` — 학생 마이페이지(`student-portal-screen`), 컨설턴트/실장
-  명부(`student-roster-screen`), 채팅방(`chat-thread`), 채팅 목록(`chat-inbox-screen`).
+  명부(`student-roster-screen`), 채팅방(`chat-thread`), 채팅 목록(`chat-inbox-screen`),
+  학생 상세의 인적사항·진행 상태·내부 메모(`student-info-card`), 수업 예약
+  등록/일정 변경/완료·노쇼·취소 처리(`reservation-panel`).
 
 ## 환경 변수
 
