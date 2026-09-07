@@ -361,7 +361,12 @@ export function StudentChatScreen() {
             }
 
             const message = item.message;
-            return (
+            const time = (
+              <ThemedText style={[styles.timeText, { color: textTertiary }]}>
+                {new Date(message.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+              </ThemedText>
+            );
+            const bubble = (
               <View
                 style={[
                   styles.bubble,
@@ -387,10 +392,22 @@ export function StudentChatScreen() {
                     </ThemedText>
                   </Pressable>
                 ) : null}
-                <ThemedText
-                  style={[styles.bubbleTime, { color: message.isMine ? 'rgba(255,255,255,0.75)' : textTertiary }]}>
-                  {new Date(message.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                </ThemedText>
+              </View>
+            );
+
+            return (
+              <View style={[styles.row, message.isMine ? styles.rowMine : styles.rowTheirs]}>
+                {message.isMine ? (
+                  <>
+                    {time}
+                    {bubble}
+                  </>
+                ) : (
+                  <>
+                    {bubble}
+                    {time}
+                  </>
+                )}
               </View>
             );
           }}
@@ -469,11 +486,14 @@ const styles = StyleSheet.create({
   },
   systemText: { flex: 1, fontSize: 13, lineHeight: 18 },
   systemAction: { fontSize: 12.5, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, width: '100%' },
+  rowMine: { justifyContent: 'flex-end' },
+  rowTheirs: { justifyContent: 'flex-start' },
   bubble: { maxWidth: '80%', borderRadius: Radius.lg, padding: Spacing.md, gap: 4 },
-  bubbleMine: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
-  bubbleTheirs: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
+  bubbleMine: { borderBottomRightRadius: 4 },
+  bubbleTheirs: { borderBottomLeftRadius: 4 },
   bubbleText: { fontSize: 14.5, lineHeight: 20 },
-  bubbleTime: { fontSize: 10, marginTop: 2 },
+  timeText: { fontSize: 10 },
   fileChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   fileChipText: { textDecorationLine: 'underline' },
   inputRow: {
