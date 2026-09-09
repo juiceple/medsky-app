@@ -4,16 +4,32 @@ import type {
   ChatMessageView,
   ChatRoom,
   ChatRoomsSummary,
+  ConsultantInvitation,
+  ConsultantPayRate,
+  ConsultantSurveyWithName,
+  ConsultantWithServices,
+  DashboardData,
+  FeedbackNoteWithNames,
+  FeedbackStatus,
+  KakaoTemplateOption,
   LessonSessionSaveInput,
   ManagementViewer,
+  NotificationCounts,
+  NotificationLogRow,
+  NotificationSettingRow,
+  ParentLinkRow,
   RecordSubmissionView,
   ReservationSaveInput,
   ReservationStatus,
   ReservationView,
+  SettlementRow,
+  SettlementSummary,
   StudentDetail,
+  StudentInvitation,
   StudentPortalData,
   StudentStatus,
   StudentSummary,
+  SurveySummary,
   UploadTicket,
 } from './management-types';
 
@@ -261,6 +277,227 @@ export function deleteReservation(
  * 올리는 이유는 medsky_homepage의 같은 업로드 방식과 같다
  * (features/management/lib/storage.ts 참고).
  */
+// ── 실장(관리자) 전용 ────────────────────────────────────────────────────────
+
+/** 학생을 컨설턴트에게 배정/재배정(consultantId 지정) 또는 배정 해제(null). */
+export function assignConsultant(
+  studentId: string,
+  consultantId: string | null
+): Promise<{ ok: true; message: string }> {
+  return postJson(`/api/mobile/management/students/${encodeURIComponent(studentId)}/assign`, {
+    consultantId,
+  });
+}
+
+/** 회차 수동 보정(결제 누락/환불/추가지급/수동조정). */
+export function adjustCredits(
+  studentId: string,
+  input: { amount: number; kind: string; memo?: string | null }
+): Promise<{ ok: true; message: string }> {
+  return postJson(`/api/mobile/management/students/${encodeURIComponent(studentId)}/credits`, input);
+}
+
+export function getConsultants(): Promise<{ consultants: ConsultantWithServices[] }> {
+  return request('/api/mobile/management/consultants');
+}
+
+export function saveConsultant(input: {
+  consultantId?: string | null;
+  name: string;
+  track: string;
+  phone?: string | null;
+  email?: string | null;
+  career?: string | null;
+  roleTitle?: string | null;
+  ratePerRound?: number | null;
+  services: string[];
+}): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/consultants', input);
+}
+
+export function getConsultantInvitations(): Promise<{ invitations: ConsultantInvitation[] }> {
+  return request('/api/mobile/management/consultants/invitations');
+}
+
+export function createConsultantInvitation(input: {
+  consultantId?: string | null;
+  name: string;
+  track: string;
+  roleTitle?: string | null;
+  phone: string;
+  email: string;
+  memo?: string | null;
+  services: string[];
+}): Promise<{ ok: true; message: string; url: string }> {
+  return postJson('/api/mobile/management/consultants/invitations', input);
+}
+
+export function cancelConsultantInvitation(invitationId: string): Promise<{ ok: true; message: string }> {
+  return deleteRequest(`/api/mobile/management/consultants/invitations/${encodeURIComponent(invitationId)}`);
+}
+
+export function getStudentInvitations(): Promise<{ invitations: StudentInvitation[] }> {
+  return request('/api/mobile/management/invitations');
+}
+
+export function createStudentInvitation(input: {
+  studentName: string;
+  studentPhone?: string | null;
+  parentName?: string | null;
+  parentPhone?: string | null;
+  serviceType?: string | null;
+  grantedSessions?: number;
+}): Promise<{ ok: true; message: string; url: string }> {
+  return postJson('/api/mobile/management/invitations', input);
+}
+
+export function reissueStudentInvitation(
+  invitationId: string
+): Promise<{ ok: true; message: string; url: string }> {
+  return postJson(`/api/mobile/management/invitations/${encodeURIComponent(invitationId)}/reissue`, {});
+}
+
+export function cancelStudentInvitation(invitationId: string): Promise<{ ok: true; message: string }> {
+  return postJson(`/api/mobile/management/invitations/${encodeURIComponent(invitationId)}/cancel`, {});
+}
+
+export function getDashboard(): Promise<DashboardData> {
+  return request('/api/mobile/management/dashboard');
+}
+
+export function getPayRates(): Promise<{ payRates: ConsultantPayRate[] }> {
+  return request('/api/mobile/management/pay-rates');
+}
+
+export function savePayRate(input: {
+  roleTitle: string;
+  ratePerRound: number;
+  memo?: string | null;
+}): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/pay-rates', input);
+}
+
+export function getSettlements(
+  periodMonth?: string
+): Promise<{ periodMonth: string; periods: string[]; rows: SettlementRow[]; summary: SettlementSummary }> {
+  const query = periodMonth ? `?period_month=${encodeURIComponent(periodMonth)}` : '';
+  return request(`/api/mobile/management/settlements${query}`);
+}
+
+export function confirmSettlement(input: {
+  consultantId: string;
+  periodMonth: string;
+  memo?: string | null;
+}): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/settlements/confirm', input);
+}
+
+export function revertSettlement(settlementId: string): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/settlements/revert', { settlementId });
+}
+
+export function toggleSettlementPaid(settlementId: string): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/settlements/toggle-paid', { settlementId });
+}
+
+export function getFeedbackNotes(): Promise<{ notes: FeedbackNoteWithNames[] }> {
+  return request('/api/mobile/management/feedback');
+}
+
+export function saveFeedbackNote(input: {
+  body: string;
+  consultantId?: string | null;
+  studentId?: string | null;
+  lessonSessionId?: string | null;
+  status?: string;
+}): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/feedback', input);
+}
+
+export function updateFeedbackStatus(
+  noteId: string,
+  status: FeedbackStatus
+): Promise<{ ok: true; message: string }> {
+  return postJson(`/api/mobile/management/feedback/${encodeURIComponent(noteId)}/status`, { status });
+}
+
+export function deleteFeedbackNote(noteId: string): Promise<{ ok: true; message: string }> {
+  return deleteRequest(`/api/mobile/management/feedback/${encodeURIComponent(noteId)}`);
+}
+
+export function getConsultantSurveys(): Promise<{ surveys: ConsultantSurveyWithName[]; summary: SurveySummary }> {
+  return request('/api/mobile/management/feedback/surveys');
+}
+
+export function submitConsultantSurvey(input: {
+  consultantId?: string | null;
+  satisfaction?: number | null;
+  prepMinutes?: number | null;
+  maxStudents?: number | null;
+  desiredHourlyRate?: number | null;
+  requestToCompany?: string | null;
+}): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/feedback/surveys', input);
+}
+
+export function getNotificationTemplates(): Promise<{ settings: NotificationSettingRow[] }> {
+  return request('/api/mobile/management/notifications/templates');
+}
+
+export function updateNotificationTemplate(input: {
+  kind: string;
+  kakaoTemplateId?: string | null;
+  isEnabled: boolean;
+}): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/notifications/templates', input);
+}
+
+export function getKakaoTemplates(): Promise<{ templates: KakaoTemplateOption[] }> {
+  return request('/api/mobile/management/notifications/kakao-template');
+}
+
+export function registerKakaoTemplate(input: {
+  kind: string;
+  templateId: string;
+  name?: string | null;
+  pfId?: string | null;
+}): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/notifications/kakao-template', input);
+}
+
+export function retryNotificationJob(jobId: string): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/notifications/retry', { jobId });
+}
+
+export function runNotificationSchedule(): Promise<{ ok: true; message: string }> {
+  return postJson('/api/mobile/management/notifications/run-schedule', {});
+}
+
+export function getNotificationLog(): Promise<{ log: NotificationLogRow[]; counts: NotificationCounts }> {
+  return request('/api/mobile/management/notifications/log');
+}
+
+export function getParentLinks(): Promise<{ links: ParentLinkRow[] }> {
+  return request('/api/mobile/management/notifications/parent-links');
+}
+
+export function reissueParentLink(studentId: string): Promise<{ ok: true; message: string; url: string }> {
+  return postJson(
+    `/api/mobile/management/notifications/parent-links/${encodeURIComponent(studentId)}/reissue`,
+    {}
+  );
+}
+
+export function toggleParentNotify(
+  studentId: string,
+  enabled: boolean
+): Promise<{ ok: true; message: string }> {
+  return postJson(
+    `/api/mobile/management/notifications/parent-links/${encodeURIComponent(studentId)}/toggle`,
+    { enabled }
+  );
+}
+
 export async function uploadWithTicket(
   ticket: UploadTicket,
   fileUri: string

@@ -72,6 +72,7 @@ export type StudentRecord = {
   parent_name: string | null;
   parent_phone: string | null;
   service_type: string | null;
+  consultant_id: string | null;
   track: string | null;
   status: string | null;
   grade_level: string | null;
@@ -250,4 +251,279 @@ export type ReservationSaveInput = {
   durationMinutes?: number;
   title: string;
   memo?: string | null;
+};
+
+/**
+ * 실장(관리자) 전용 타입.
+ *
+ * medsky_homepage src/features/management/types.ts 의 같은 이름 상수/타입을
+ * 손으로 옮긴 것이다. 그쪽이 바뀌면 여기도 같이 고쳐야 한다.
+ */
+
+export const CONSULTANT_TRACKS = [
+  '상경',
+  '사회과학',
+  '인문',
+  '생명/화학/메디컬',
+  '자연',
+  '공학',
+  '교육',
+] as const;
+export type ConsultantTrack = (typeof CONSULTANT_TRACKS)[number];
+
+export const CONSULTANT_SERVICES = ['종합 생기부 관리', '정시 원서 컨설팅', '수시 원서 컨설팅'] as const;
+export type ConsultantService = (typeof CONSULTANT_SERVICES)[number];
+
+export const CONSULTANT_ROLE_TITLES = [
+  '신입 컨설턴트(1명)',
+  '신입 컨설턴트(2명)',
+  '신입 컨설턴트(3명)',
+  '컨설턴트',
+  '실장 컨설턴트',
+  '대표 컨설턴트',
+] as const;
+export type ConsultantRoleTitle = (typeof CONSULTANT_ROLE_TITLES)[number];
+
+export const SERVICE_TYPES = [
+  '시그니처 컨설팅',
+  '종합 생기부 관리(2회)',
+  '종합 생기부 관리(4회)',
+  '종합 생기부 관리(6회)',
+  '종합 생기부 관리(8회)',
+  '정시 원서 컨설팅',
+  '수시 원서 컨설팅',
+] as const;
+export type ServiceType = (typeof SERVICE_TYPES)[number];
+
+export const CREDIT_KINDS = ['결제', '환불', '추가지급', '수동조정'] as const;
+export type CreditKind = (typeof CREDIT_KINDS)[number];
+
+export const INVITATION_STATUSES = ['발송 대기', '발송 완료', '수락 완료', '만료', '취소'] as const;
+export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
+
+export const SETTLEMENT_STATUSES = ['확정', '지급완료'] as const;
+export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number];
+
+export const FEEDBACK_STATUSES = ['시작 전', '진행 중', '완료'] as const;
+export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number];
+
+export type ConsultantProfile = {
+  id: string;
+  name: string;
+  track: ConsultantTrack;
+  phone: string | null;
+  email: string | null;
+  user_id: string | null;
+  career: string | null;
+  role_title: ConsultantRoleTitle | null;
+  rate_per_round: number | null;
+};
+
+export type ConsultantWithServices = ConsultantProfile & { services: ConsultantService[] };
+
+export type ConsultantPayRate = {
+  role_title: ConsultantRoleTitle;
+  rate_per_round: number;
+  memo: string | null;
+  updated_at: string;
+};
+
+export type Settlement = {
+  id: string;
+  consultant_id: string;
+  period_month: string;
+  status: SettlementStatus;
+  rate_per_round: number;
+  round_total: number;
+  session_count: number;
+  amount: number;
+  memo: string | null;
+  confirmed_at: string;
+  paid_at: string | null;
+};
+
+export type SettlementRow = {
+  consultant: ConsultantProfile;
+  periodMonth: string;
+  roundTotal: number;
+  sessionCount: number;
+  unsettledRoundTotal: number;
+  unsettledSessionCount: number;
+  rate: number | null;
+  pendingAmount: number;
+  settlement: Settlement | null;
+};
+
+export type SettlementSummary = {
+  roundTotal: number;
+  unsettledRoundTotal: number;
+  pendingAmount: number;
+  confirmedAmount: number;
+  paidAmount: number;
+  missingRateCount: number;
+};
+
+export type ConsultantInvitation = {
+  id: string;
+  consultant_id: string | null;
+  name: string;
+  track: ConsultantTrack;
+  role_title: ConsultantRoleTitle | null;
+  email: string | null;
+  phone: string | null;
+  memo: string | null;
+  services: ConsultantService[];
+  status: InvitationStatus;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+};
+
+export type StudentInvitation = {
+  id: string;
+  student_id: string | null;
+  student_name: string | null;
+  student_phone: string | null;
+  parent_phone: string | null;
+  service_type: ServiceType | null;
+  granted_sessions: number;
+  plan_id: string | null;
+  invoice_id: number | null;
+  status: InvitationStatus;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+};
+
+export type FeedbackNoteWithNames = {
+  id: string;
+  consultant_id: string | null;
+  student_id: string | null;
+  lesson_session_id: string | null;
+  body: string;
+  status: FeedbackStatus;
+  created_at: string;
+  updated_at: string;
+  consultantName: string | null;
+  studentName: string | null;
+};
+
+export type ConsultantSurveyWithName = {
+  id: string;
+  consultant_id: string;
+  satisfaction: number | null;
+  prep_minutes: number | null;
+  max_students: number | null;
+  desired_hourly_rate: number | null;
+  request_to_company: string | null;
+  submitted_at: string;
+  consultantName: string | null;
+};
+
+export type SurveySummary = {
+  count: number;
+  avgSatisfaction: number | null;
+  avgPrepMinutes: number | null;
+  avgMaxStudents: number | null;
+  avgDesiredRate: number | null;
+};
+
+export type ConsoleOverview = {
+  totalStudents: number;
+  activeStudents: number;
+  unassigned: number;
+  waitingOnboarding: number;
+  lowCredit: number;
+  stalled: number;
+  roundsThisMonth: number;
+  sessionsThisMonth: number;
+};
+
+export type ConsultantLoad = {
+  consultant: ConsultantProfile;
+  studentCount: number;
+  activeStudentCount: number;
+  remainingRounds: number;
+  roundsThisMonth: number;
+  missingRate: boolean;
+};
+
+export type StalledStudent = {
+  id: string;
+  name: string;
+  consultantName: string | null;
+  remaining: number;
+  lastLessonDate: string | null;
+  daysSinceLastLesson: number | null;
+};
+
+export type DashboardData = {
+  periodMonth: string;
+  overview: ConsoleOverview;
+  consultantLoads: ConsultantLoad[];
+  stalledStudents: StalledStudent[];
+};
+
+export const NOTIFICATION_KINDS = [
+  'student_invitation',
+  'student_invitation_remind',
+  'student_assigned',
+  'parent_assigned',
+  'consultant_first_lesson',
+  'student_lesson_summary',
+  'student_lesson_reminder',
+  'parent_weekly_report',
+  'parent_low_credit',
+  'parent_expiry_warning',
+  'consultant_stalled',
+  'consultant_unlogged',
+  'consultant_invitation',
+  'manager_ops_alert',
+] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+export type NotificationSettingRow = {
+  kind: NotificationKind;
+  kakao_template_id: string | null;
+  is_enabled: boolean;
+  memo: string | null;
+  updated_at: string;
+  templateName: string | null;
+  templateActive: boolean;
+};
+
+export type KakaoTemplateOption = {
+  id: string;
+  name: string;
+  template_id: string;
+  is_active: boolean;
+};
+
+export type NotificationLogRow = {
+  id: string;
+  kind: NotificationKind;
+  audience: string;
+  student_id: string | null;
+  consultant_id: string | null;
+  recipient_name: string | null;
+  recipient_phone: string;
+  status: string;
+  attempt_count: number;
+  error_message: string | null;
+  processed_at: string | null;
+  created_at: string;
+  studentName: string | null;
+  consultantName: string | null;
+};
+
+export type NotificationCounts = { pending: number; failed: number; skipped: number };
+
+export type ParentLinkRow = {
+  studentId: string;
+  studentName: string;
+  parentName: string | null;
+  parentPhone: string | null;
+  notifyEnabled: boolean;
+  url: string | null;
+  issuedAt: string | null;
 };

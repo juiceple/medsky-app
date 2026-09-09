@@ -95,6 +95,12 @@ function RootLayoutNav() {
           <Stack.Screen name="student/[id]" options={{ title: '' }} />
           <Stack.Screen name="chat/[studentId]" options={{ title: '' }} />
           <Stack.Screen name="session/[sessionId]" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="admin/index" options={{ title: '실장 콘솔' }} />
+          <Stack.Screen name="admin/consultants" options={{ title: '컨설턴트 관리' }} />
+          <Stack.Screen name="admin/invitations" options={{ title: '학생 초대' }} />
+          <Stack.Screen name="admin/settlements" options={{ title: '정산' }} />
+          <Stack.Screen name="admin/feedback" options={{ title: '피드백 · 설문' }} />
+          <Stack.Screen name="admin/notifications" options={{ title: '알림 관리' }} />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

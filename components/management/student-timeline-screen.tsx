@@ -4,6 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { ManagerStudentControls } from '@/components/management/manager-student-controls';
 import { StatusMessage } from '@/components/management/status-message';
 import { StudentInfoCard } from '@/components/management/student-info-card';
 import { ThemedText } from '@/components/themed-text';
@@ -705,6 +706,7 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
           </View>
 
           <StudentInfoCard student={student} onSaved={load} hideStatus={hideStatus} />
+          <ManagerStudentControls student={student} onSaved={load} />
         </ScrollView>
 
         <View style={[styles.actionBar, { backgroundColor: surface, borderTopColor: border }]}>
