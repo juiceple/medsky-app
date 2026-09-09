@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   message: { fontSize: 13.5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   slot: {
-    width: '30%',
+    width: '22%',
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.md,
     alignItems: 'center',
