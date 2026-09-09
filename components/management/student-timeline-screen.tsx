@@ -8,7 +8,6 @@ import { ManagerStudentControls } from '@/components/management/manager-student-
 import { StatusMessage } from '@/components/management/status-message';
 import { ReservationPanel, type ReservationRecordSlot } from '@/components/management/reservation-panel';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar } from '@/components/ui/avatar';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Radius, Spacing } from '@/constants/theme';
@@ -332,22 +331,35 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
 
   return (
     <>
-      <Stack.Screen options={{ title: student.student_name, headerBackTitle: '학생' }} />
+      <Stack.Screen
+        options={{
+          title: '',
+          headerBackTitle: '학생',
+          headerRight: () => (
+            <Pressable
+              hitSlop={8}
+              onPress={() => setHeaderOpen((prev) => !prev)}
+              style={styles.headerToggle}>
+              <ThemedText style={[styles.headerToggleName, { color: text }]} numberOfLines={1}>
+                {student.student_name}{' '}
+                <ThemedText style={[styles.headerToggleCount, { color: textSecondary }]}>
+                  (<ThemedText style={[styles.headerToggleCount, { color: primary }]}>
+                    {student.balance.remaining}
+                  </ThemedText>
+                  /
+                  <ThemedText style={[styles.headerToggleCount, { color: primary }]}>
+                    {student.balance.granted}
+                  </ThemedText>
+                  )
+                </ThemedText>
+              </ThemedText>
+              <Ionicons name={headerOpen ? 'chevron-up' : 'chevron-down'} size={14} color={textSecondary} />
+            </Pressable>
+          ),
+        }}
+      />
       <View style={[styles.flex, { backgroundColor: background }]}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
-          <Pressable
-            style={[styles.header, { backgroundColor: surface, borderColor: border }]}
-            onPress={() => setHeaderOpen((prev) => !prev)}>
-            <Avatar name={student.student_name} size={36} />
-            <ThemedText
-              style={[styles.headerSummary, { color: textSecondary }]}
-              numberOfLines={1}>
-              {student.service_type ?? '상품 미배정'} · {student.balance.granted}회 · 잔여 {student.balance.remaining}회
-              {hideStatus ? '' : ` · ${student.status ?? '상태 미확인'}`}
-            </ThemedText>
-            <Ionicons name={headerOpen ? 'chevron-up' : 'chevron-down'} size={18} color={textSecondary} />
-          </Pressable>
-
           {headerOpen ? (
             <View style={[styles.headerDetail, { backgroundColor: surface, borderColor: border }]}>
               <View style={styles.headerBadgeRow}>
@@ -632,15 +644,15 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: Spacing.xl, gap: Spacing.md, paddingBottom: Spacing.xxxl },
-  header: {
+  headerToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: Radius.lg,
-    padding: Spacing.sm + 2,
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
   },
-  headerSummary: { flex: 1, fontSize: 13.5, fontWeight: '600' },
+  headerToggleName: { fontSize: 16, fontWeight: '700' },
+  headerToggleCount: { fontSize: 15, fontWeight: '700' },
   headerDetail: {
     gap: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
