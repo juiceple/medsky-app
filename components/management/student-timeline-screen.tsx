@@ -2,39 +2,36 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Stack, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ManagerStudentControls } from '@/components/management/manager-student-controls';
 import { StatusMessage } from '@/components/management/status-message';
 import { StudentInfoCard } from '@/components/management/student-info-card';
+import { ReservationPanel, type ReservationRecordSlot } from '@/components/management/reservation-panel';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Radius, Spacing } from '@/constants/theme';
 import { useManagementViewer } from '@/hooks/use-management-viewer';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import {
-  bookReservation,
   deleteLessonSession,
-  deleteReservation,
   getChatRooms,
   getReservations,
   getStudentDetail,
   saveLessonSession,
-  settleReservation,
 } from '@/lib/management-api';
 import type {
   ChatRoomsSummary,
   LessonMaterialInput,
   LessonSessionFull,
   LessonSessionSaveInput,
-  ReservationSaveInput,
   ReservationStatus,
   ReservationView,
   StudentDetail,
 } from '@/lib/management-types';
+import { classServiceFromServiceType } from '@/lib/reservation-rules';
 
 const CANCELLED: ReservationStatus[] = ['취소', '예약자 취소'];
 const SETTLED: ReservationStatus[] = ['완료', '노쇼'];
@@ -75,7 +72,7 @@ function toSaveInput(session: LessonSessionFull, patch: Partial<LessonSessionSav
   };
 }
 
-/** 컨설턴트/실장이 보는 학생 상세 — 예약과 회차 기록을 하나의 타임라인으로 합치고, 학생 정보는 접어 넣었다. */
+/** 컨설턴트/실장이 보는 학생 상세 — 수업 예약(웹의 StudentReservationPanel 과 같은 구성)과 회차 기록 타임라인을 담는다. */
 export function StudentTimelineScreen({ studentId }: { studentId: string }) {
   const router = useRouter();
   const viewerState = useManagementViewer();
@@ -86,25 +83,15 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [sharingSessionId, setSharingSessionId] = useState<string | null>(null);
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingReservationId, setEditingReservationId] = useState<string | null>(null);
-  const [lessonDate, setLessonDate] = useState('');
-  const [lessonTime, setLessonTime] = useState('');
-  const [deductedRound, setDeductedRound] = useState('1');
-  const [title, setTitle] = useState('');
-  const [memo, setMemo] = useState('');
-  const [submittingReservation, setSubmittingReservation] = useState(false);
-  const [busyReservationId, setBusyReservationId] = useState<string | null>(null);
-
   const background = useThemeColor({}, 'background');
   const surface = useThemeColor({}, 'surface');
   const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
   const border = useThemeColor({}, 'border');
   const borderStrong = useThemeColor({}, 'borderStrong');
   const primary = useThemeColor({}, 'primary');
-  const primaryMuted = useThemeColor({}, 'primaryMuted');
   const text = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
+  const textTertiary = useThemeColor({}, 'textTertiary');
   const success = useThemeColor({}, 'success');
   const danger = useThemeColor({}, 'danger');
   const warning = useThemeColor({}, 'warning');
@@ -157,110 +144,6 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
   const segmentCount = Math.max(1, Math.round(student.balance.granted));
   const filledCount = Math.max(0, Math.min(segmentCount, Math.round(student.balance.used)));
 
-  function resetForm() {
-    setEditingReservationId(null);
-    setLessonDate('');
-    setLessonTime('');
-    setDeductedRound('1');
-    setTitle('');
-    setMemo('');
-  }
-
-  function openNewForm() {
-    resetForm();
-    setFormOpen(true);
-  }
-
-  function openEditForm(reservation: ReservationView) {
-    setEditingReservationId(reservation.id);
-    setLessonDate(reservation.lessonDate);
-    setLessonTime(reservation.lessonTime ?? '');
-    setDeductedRound(String(reservation.deductedRound));
-    setTitle(reservation.title ?? '');
-    setMemo(reservation.memo ?? '');
-    setFormOpen(true);
-  }
-
-  async function handleSubmitReservation() {
-    if (!lessonDate.trim() || !lessonTime.trim()) {
-      Alert.alert('수업 날짜와 시간을 입력해주세요.');
-      return;
-    }
-    if (!title.trim()) {
-      Alert.alert('수업 주제를 입력해주세요.');
-      return;
-    }
-    const deducted = Number(deductedRound);
-    if (!Number.isFinite(deducted) || deducted < 0) {
-      Alert.alert('차감 회차는 0 이상이어야 합니다.');
-      return;
-    }
-
-    const input: ReservationSaveInput = {
-      reservationId: editingReservationId,
-      lessonDate: lessonDate.trim(),
-      lessonTime: lessonTime.trim(),
-      deductedRound: deducted,
-      title: title.trim(),
-      memo: memo.trim() || null,
-    };
-
-    setSubmittingReservation(true);
-    try {
-      await bookReservation(studentId, input);
-      setFormOpen(false);
-      resetForm();
-      await load();
-    } catch (error) {
-      Alert.alert('저장 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
-    } finally {
-      setSubmittingReservation(false);
-    }
-  }
-
-  function handleSettle(reservation: ReservationView, status: '완료' | '노쇼' | '취소') {
-    const verb = status === '취소' ? '취소' : `${status} 처리`;
-    Alert.alert(`이 수업을 ${verb}할까요?`, status !== '취소' ? '회차가 차감됩니다.' : undefined, [
-      { text: '아니요', style: 'cancel' },
-      {
-        text: '네',
-        style: status === '취소' ? 'destructive' : 'default',
-        onPress: async () => {
-          setBusyReservationId(reservation.id);
-          try {
-            await settleReservation(studentId, reservation.id, status);
-            await load();
-          } catch (error) {
-            Alert.alert('처리 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
-          } finally {
-            setBusyReservationId(null);
-          }
-        },
-      },
-    ]);
-  }
-
-  function handleDeleteReservation(reservation: ReservationView) {
-    Alert.alert('이 예약을 삭제할까요?', '되돌릴 수 없습니다.', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          setBusyReservationId(reservation.id);
-          try {
-            await deleteReservation(studentId, reservation.id);
-            await load();
-          } catch (error) {
-            Alert.alert('삭제 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
-          } finally {
-            setBusyReservationId(null);
-          }
-        },
-      },
-    ]);
-  }
-
   function openPrepSession(reservation: ReservationView) {
     router.push({
       pathname: '/session/[sessionId]',
@@ -296,6 +179,55 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
         materials: JSON.stringify(session.materials ?? []),
       },
     });
+  }
+
+  /** 예약 목록의 각 항목을 펼쳤을 때 보여줄 회차 기록 영역. 웹의 renderRecord 와 같은 자리다. */
+  function renderReservationRecord(reservation: ReservationView): ReservationRecordSlot {
+    if (CANCELLED.includes(reservation.status)) {
+      return { hasRecord: false, content: null };
+    }
+
+    const session = reservation.lessonSessionId
+      ? sessions.find((s) => s.id === reservation.lessonSessionId) ?? null
+      : null;
+
+    if (session) {
+      return {
+        hasRecord: true,
+        content: (
+          <View style={styles.recordSlot}>
+            <ThemedText style={[styles.recordSummary, { color: textSecondary }]}>
+              {session.topic ?? session.student_summary ?? '아직 작성된 요약이 없어요.'}
+            </ThemedText>
+            <Button
+              label="회차 기록 보기/수정"
+              size="sm"
+              variant="outline"
+              fullWidth={false}
+              onPress={() => openSessionEditor(session)}
+            />
+          </View>
+        ),
+      };
+    }
+
+    return {
+      hasRecord: false,
+      content: (
+        <View style={styles.recordSlot}>
+          <ThemedText style={[styles.recordSummary, { color: textTertiary }]}>
+            이 수업을 완료 또는 노쇼로 처리하면 회차 기록이 자동으로 만들어집니다.
+          </ThemedText>
+          <Button
+            label="회차 기록 미리 작성"
+            size="sm"
+            variant="outline"
+            fullWidth={false}
+            onPress={() => openPrepSession(reservation)}
+          />
+        </View>
+      ),
+    };
   }
 
   function handleDeleteSession(session: LessonSessionFull) {
@@ -347,10 +279,7 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
       openSessionEditor(linked);
       return;
     }
-    Alert.alert('예약이 필요해요', '회차 기록을 작성하려면 먼저 수업 예약을 추가해주세요.', [
-      { text: '취소', style: 'cancel' },
-      { text: '예약 추가', onPress: openNewForm },
-    ]);
+    Alert.alert('예약이 필요해요', '회차 기록을 작성하려면 먼저 위에서 수업 예약을 추가해주세요.');
   }
 
   return (
@@ -413,160 +342,18 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
             </View>
           ) : null}
 
-          {formOpen ? (
-            <Card style={styles.formCard}>
-              <View style={styles.row2}>
-                <View style={styles.field}>
-                  <ThemedText style={styles.label}>날짜</ThemedText>
-                  <TextInput
-                    style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
-                    value={lessonDate}
-                    onChangeText={setLessonDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={textSecondary}
-                  />
-                </View>
-                <View style={styles.field}>
-                  <ThemedText style={styles.label}>시간</ThemedText>
-                  <TextInput
-                    style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
-                    value={lessonTime}
-                    onChangeText={setLessonTime}
-                    placeholder="HH:MM"
-                    placeholderTextColor={textSecondary}
-                  />
-                </View>
-              </View>
-              <View style={styles.field}>
-                <ThemedText style={styles.label}>차감 회차 (0.5 단위)</ThemedText>
-                <TextInput
-                  style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
-                  value={deductedRound}
-                  onChangeText={setDeductedRound}
-                  placeholder="예: 1"
-                  keyboardType="decimal-pad"
-                  placeholderTextColor={textSecondary}
-                />
-              </View>
-              <View style={styles.field}>
-                <ThemedText style={styles.label}>수업 주제</ThemedText>
-                <TextInput
-                  style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="예: 3회차 - 자기소개서 첨삭"
-                  placeholderTextColor={textSecondary}
-                />
-              </View>
-              <View style={styles.field}>
-                <ThemedText style={styles.label}>메모 (선택)</ThemedText>
-                <TextInput
-                  style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
-                  value={memo}
-                  onChangeText={setMemo}
-                  placeholder="내부 메모"
-                  placeholderTextColor={textSecondary}
-                />
-              </View>
-              <View style={styles.formActions}>
-                <Button
-                  label="취소"
-                  variant="secondary"
-                  size="sm"
-                  fullWidth={false}
-                  onPress={() => {
-                    setFormOpen(false);
-                    resetForm();
-                  }}
-                />
-                <Button
-                  label={editingReservationId ? '일정 변경' : '예약하기'}
-                  size="sm"
-                  fullWidth={false}
-                  loading={submittingReservation}
-                  onPress={handleSubmitReservation}
-                />
-              </View>
-            </Card>
-          ) : null}
+          <ReservationPanel
+            studentId={studentId}
+            service={classServiceFromServiceType(student.service_type)}
+            consultantId={student.consultant_id}
+            consultantName={student.consultantName}
+            reservations={reservations}
+            remaining={student.balance.remaining}
+            onChanged={load}
+            renderRecord={renderReservationRecord}
+          />
 
           <View style={styles.timeline}>
-            {upcoming.map((reservation, index) => (
-              <View key={reservation.id} style={styles.nodeRow}>
-                <View style={styles.nodeRail}>
-                  <View style={[styles.dot, styles.dotDashed, { borderColor: primary, backgroundColor: surface }]}>
-                    <Ionicons name="add" size={15} color={primary} />
-                  </View>
-                  <View style={[styles.line, { backgroundColor: border }]} />
-                </View>
-                <View style={styles.nodeBody}>
-                  <View style={[styles.nodeCard, styles.upcomingCard, { borderColor: primary, backgroundColor: primaryMuted }]}>
-                    <View style={styles.nodeCardHead}>
-                      <ThemedText style={styles.nodeTitle}>
-                        {nextRoundHint + index}회차 · {shortDate(reservation.lessonDate)}{' '}
-                        {reservation.lessonTime ?? ''}
-                      </ThemedText>
-                      <Badge label={reservation.status} tone="primary" />
-                    </View>
-                    {reservation.title ? (
-                      <ThemedText style={[styles.nodeTopic, { color: textSecondary }]}>{reservation.title}</ThemedText>
-                    ) : null}
-                    <ThemedText style={[styles.nodeMeta, { color: textSecondary }]}>
-                      차감 {reservation.deductedRound}회 · {reservation.durationMinutes}분
-                    </ThemedText>
-                    <View style={styles.actionsRow}>
-                      <Button
-                        label="완료 처리"
-                        size="sm"
-                        fullWidth={false}
-                        loading={busyReservationId === reservation.id}
-                        onPress={() => handleSettle(reservation, '완료')}
-                      />
-                      <Button
-                        label="노쇼"
-                        size="sm"
-                        variant="secondary"
-                        fullWidth={false}
-                        loading={busyReservationId === reservation.id}
-                        onPress={() => handleSettle(reservation, '노쇼')}
-                      />
-                      <Button
-                        label="일정 변경"
-                        size="sm"
-                        variant="outline"
-                        fullWidth={false}
-                        onPress={() => openEditForm(reservation)}
-                      />
-                    </View>
-                    <View style={styles.actionsRow}>
-                      {!reservation.lessonSessionId ? (
-                        <Button
-                          label="회차 기록 미리 작성"
-                          size="sm"
-                          variant="outline"
-                          fullWidth={false}
-                          onPress={() => openPrepSession(reservation)}
-                        />
-                      ) : null}
-                      <Button
-                        label="취소 처리"
-                        size="sm"
-                        variant="ghost"
-                        fullWidth={false}
-                        loading={busyReservationId === reservation.id}
-                        onPress={() => handleSettle(reservation, '취소')}
-                      />
-                      {!reservation.lessonSessionId ? (
-                        <Pressable onPress={() => handleDeleteReservation(reservation)} style={styles.deleteIcon}>
-                          <Ionicons name="trash-outline" size={16} color={danger} />
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-
             {sessions.map((session) => {
               const open = expandedSessionId === session.id;
               const shareTone: BadgeTone = session.is_shared_with_student ? 'success' : 'warning';
@@ -717,11 +504,6 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
             style={styles.flexButton}
           />
           <Button label="기록 작성" variant="secondary" onPress={handleQuickRecord} style={styles.flexButton} />
-          <Pressable
-            style={[styles.addButton, { borderColor: primary }]}
-            onPress={() => (formOpen ? setFormOpen(false) : openNewForm())}>
-            <Ionicons name="add" size={22} color={primary} />
-          </Pressable>
         </View>
       </View>
     </>
@@ -761,17 +543,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bannerButtonText: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
-  formCard: { gap: Spacing.sm },
-  row2: { flexDirection: 'row', gap: Spacing.md },
-  field: { flex: 1, gap: Spacing.xs },
-  label: { fontSize: 13, fontWeight: '700' },
-  input: {
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
-    fontSize: 15,
-  },
-  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.xs },
+  recordSlot: { gap: Spacing.sm },
+  recordSummary: { fontSize: 13.5, lineHeight: 19 },
   timeline: { flexDirection: 'column' },
   nodeRow: { flexDirection: 'row', gap: 14, alignItems: 'stretch' },
   nodeRail: { width: 26, alignItems: 'center', flexShrink: 0, paddingTop: 4 },
@@ -780,13 +553,10 @@ const styles = StyleSheet.create({
   line: { flex: 1, width: 2, minHeight: 14 },
   nodeBody: { flex: 1, minWidth: 0, paddingBottom: 14 },
   nodeCard: { borderWidth: 1, borderRadius: Radius.lg, padding: 14, gap: 6 },
-  upcomingCard: { gap: 8 },
   nodeCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   nodeTitle: { fontSize: 15, fontWeight: '700' },
   nodeTopic: { fontSize: 13.5, lineHeight: 19 },
-  nodeMeta: { fontSize: 12 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.sm },
-  deleteIcon: { padding: 6 },
   expandCard: { borderRadius: Radius.lg, padding: 14, marginTop: 8, gap: 12 },
   expandSection: { gap: 4 },
   expandSectionBordered: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 6 },
@@ -808,12 +578,4 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   flexButton: { flex: 1 },
-  addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.md,
-    borderWidth: 1.4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });
