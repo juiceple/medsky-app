@@ -1,47 +1,27 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AdaptiveTabBar } from '@/components/navigation/adaptive-tab-bar';
+import { useChatUnreadCount } from '@/hooks/use-chat-unread-count';
+import { useManagementViewer } from '@/hooks/use-management-viewer';
 
 export const unstable_settings = {
   initialRouteName: 'chat',
 };
 
-// 아이콘(24) + 라벨(11) 이 안 잘리고 들어갈 콘텐츠 영역 높이. 실기기 홈 인디케이터
-// 아래 여백은 insets.bottom 으로 따로 더한다 (안 그러면 paddingBottom 이 콘텐츠
-// 영역을 깎아 먹어서 아이콘/글자가 잘려 보인다).
-const TAB_BAR_CONTENT_HEIGHT = 52;
-const TAB_BAR_TOP_PADDING = 8;
-const MIN_BOTTOM_PADDING = 8;
-
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
-  const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(insets.bottom, MIN_BOTTOM_PADDING);
+  const viewerState = useManagementViewer();
+  const viewer = viewerState.status === 'ready' ? viewerState.viewer : null;
+  const unreadCount = useChatUnreadCount(viewer);
 
   return (
     <Tabs
+      // 모바일은 하단 탭바, 태블릿은 아이콘 레일, PC는 라벨 사이드바 — 화면 폭에
+      // 따라 AdaptiveTabBar가 알아서 고른다 (hooks/use-breakpoint.ts).
+      tabBar={(props) => <AdaptiveTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarActiveTintColor: palette.tabIconSelected,
-        tabBarInactiveTintColor: palette.tabIconDefault,
-        tabBarStyle: {
-          backgroundColor: palette.tabBarBackground,
-          borderTopColor: palette.tabBarBorder,
-          height: TAB_BAR_TOP_PADDING + TAB_BAR_CONTENT_HEIGHT + bottomPadding,
-          paddingTop: TAB_BAR_TOP_PADDING,
-          paddingBottom: bottomPadding,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
       }}>
       <Tabs.Screen
         name="index"
@@ -56,6 +36,7 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: '채팅',
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={24} color={color} />
           ),
