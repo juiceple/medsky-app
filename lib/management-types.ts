@@ -72,6 +72,7 @@ export type StudentRecord = {
   parent_name: string | null;
   parent_phone: string | null;
   service_type: string | null;
+  consultant_id: string | null;
   track: string | null;
   status: string | null;
   grade_level: string | null;

@@ -55,12 +55,22 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before 
   타입은 생성된 것이 아니라 medsky_homepage의
   `src/features/management/types.ts`를 손으로 옮긴 것이라, 그쪽이 바뀌면 같이 고쳐야
   한다.
+- `lib/reservation-rules.ts` / `lib/reservation-calendar.ts` — 수업 예약 규칙(서비스별
+  겹침 범위, 0.5회차 허용, 회차 선택 폭)과 날짜 계산. medsky_homepage 의
+  `src/lib/reservations/rules.ts` / `calendar.ts` 를 그대로 옮긴 것이라, 그쪽이
+  바뀌면(특히 `SERVICE_RULES`) 같이 고쳐야 한다. 최종 방어선은 항상 서버(mobile API
+  route)다.
 - `hooks/use-management-viewer.ts` — 로그인한 계정의 종합 생기부 관리 역할
   (student/consultant/manager/none)을 가져오는 훅. 홈·채팅 탭이 공유한다.
+- `hooks/use-slot-availability.ts` — 예약 가능 시간 조회. medsky_homepage 의 인증이
+  필요 없는 `GET /api/reservations/availability` 를 직접 부른다.
 - `components/management/` — 학생 마이페이지(`student-portal-screen`), 컨설턴트/실장
   명부(`student-roster-screen`), 채팅방(`chat-thread`), 채팅 목록(`chat-inbox-screen`),
-  학생 상세의 인적사항·진행 상태·내부 메모(`student-info-card`), 수업 예약
-  등록/일정 변경/완료·노쇼·취소 처리(`reservation-panel`).
+  학생 상세의 인적사항·진행 상태·내부 메모(`student-info-card`), 수업 예약 등록/일정
+  변경/완료·노쇼·취소 처리(`reservation-panel` + 예약 팝업 `book-lesson-dialog`,
+  날짜 선택 `reservation-calendar`, 시간 선택 `slot-picker` — medsky_homepage 의
+  `StudentReservationPanel`/`BookLessonDialog`/`ReservationCalendar`/`SlotPicker` 와
+  같은 흐름·문구를 쓴다).
 
 ## 환경 변수
 
