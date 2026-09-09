@@ -122,3 +122,10 @@ Storage로 직접 올린다(서명 업로드 URL 티켓 방식 — 웹과 동일
 npm install
 npx expo start
 ```
+
+## Git
+
+**모든 세션에서, 브랜치에 커밋을 push 했으면 사용자가 별도로 요청하지 않아도
+항상 PR을 만들고 사용자 확인 없이 바로 merge까지 한다.** 이미 열려 있는 PR이
+있으면 새로 만들지 않고 그 PR을 그대로 쓴다. `main`으로 직접 push/merge하지
+않고 항상 PR을 거친다.
