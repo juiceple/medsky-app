@@ -169,63 +169,59 @@ export default function SessionEditorScreen() {
     <>
       <Stack.Screen options={{ title: isNew ? '회차 기록 작성' : '회차 기록 수정' }} />
       <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
-        <Card style={styles.row2}>
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>수업 날짜</ThemedText>
+        <Card style={styles.metaRow}>
+          <View style={[styles.field, styles.dateField]}>
+            <ThemedText style={styles.metaLabel}>날짜</ThemedText>
             <TextInput
-              style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
+              style={[styles.input, styles.compactInput, { color: text, backgroundColor: surfaceSecondary }]}
               value={lessonDate}
               onChangeText={setLessonDate}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={textSecondary}
             />
           </View>
-        </Card>
-
-        <Card style={styles.row2}>
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>수업 회차</ThemedText>
+          <View style={[styles.field, styles.roundField]}>
+            <ThemedText style={styles.metaLabel}>회차</ThemedText>
             <TextInput
-              style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
+              style={[styles.input, styles.compactInput, { color: text, backgroundColor: surfaceSecondary }]}
               value={sessionRound}
               onChangeText={setSessionRound}
-              placeholder="예: 1"
+              placeholder="1"
               keyboardType="decimal-pad"
               placeholderTextColor={textSecondary}
             />
           </View>
-          <View style={styles.field}>
-            <ThemedText style={styles.label}>차감 회차</ThemedText>
+          <View style={[styles.field, styles.roundField]}>
+            <ThemedText style={styles.metaLabel}>차감</ThemedText>
             <TextInput
-              style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
+              style={[styles.input, styles.compactInput, { color: text, backgroundColor: surfaceSecondary }]}
               value={deductedRound}
               onChangeText={setDeductedRound}
-              placeholder="예: 1"
+              placeholder="1"
               keyboardType="decimal-pad"
               placeholderTextColor={textSecondary}
             />
           </View>
-        </Card>
-
-        <Card>
-          <ThemedText style={styles.label}>진행 상태</ThemedText>
-          <View style={styles.chipRow}>
-            {STATUS_OPTIONS.map((option) => {
-              const selected = option === status;
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => setStatus(option)}
-                  style={[
-                    styles.chip,
-                    { backgroundColor: selected ? primary : surfaceSecondary },
-                  ]}>
-                  <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>
-                    {option}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
+          <View style={styles.statusField}>
+            <ThemedText style={styles.metaLabel}>상태</ThemedText>
+            <View style={styles.chipRowCompact}>
+              {STATUS_OPTIONS.map((option) => {
+                const selected = option === status;
+                return (
+                  <Pressable
+                    key={option}
+                    onPress={() => setStatus(option)}
+                    style={[
+                      styles.chipCompact,
+                      { backgroundColor: selected ? primary : surfaceSecondary },
+                    ]}>
+                    <ThemedText style={[styles.chipTextCompact, { color: selected ? '#fff' : text }]}>
+                      {option}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </Card>
 
@@ -388,6 +384,20 @@ const styles = StyleSheet.create({
   row2: { flexDirection: 'row', gap: Spacing.md },
   field: { flex: 1, gap: Spacing.xs },
   label: { fontSize: 13, fontWeight: '700' },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+    padding: Spacing.md,
+  },
+  metaLabel: { fontSize: 10.5, fontWeight: '700' },
+  dateField: { flex: 1.5, gap: 4 },
+  roundField: { width: 44, gap: 4 },
+  statusField: { flex: 1.8, gap: 4 },
+  compactInput: { paddingHorizontal: Spacing.xs, paddingVertical: 6, fontSize: 12.5 },
+  chipRowCompact: { flexDirection: 'row', gap: 3 },
+  chipCompact: { flex: 1, paddingVertical: 6, borderRadius: Radius.pill, alignItems: 'center' },
+  chipTextCompact: { fontSize: 10.5, fontWeight: '700' },
   hint: { fontSize: 12 },
   cardBody: { fontSize: 14 },
   input: {
