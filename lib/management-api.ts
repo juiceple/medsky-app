@@ -156,6 +156,19 @@ export function getChatRooms(studentId?: string): Promise<ChatRoomsSummary> {
   return request(`/api/mobile/management/chat/rooms${query}`);
 }
 
+/** 채팅 푸시 알림을 받을 이 기기의 Expo 푸시 토큰을 로그인한 계정에 등록한다. */
+export function registerPushToken(input: {
+  token: string;
+  platform: 'ios' | 'android';
+}): Promise<{ ok: true }> {
+  return postJson('/api/mobile/management/push-token', input);
+}
+
+/** 로그아웃 시 이 기기가 더 이상 채팅 푸시를 받지 않도록 토큰을 지운다. */
+export function unregisterPushToken(token: string): Promise<{ ok: true }> {
+  return deleteRequest(`/api/mobile/management/push-token?token=${encodeURIComponent(token)}`);
+}
+
 export function getStudents(): Promise<{ students: StudentSummary[] }> {
   return request('/api/mobile/management/students');
 }
