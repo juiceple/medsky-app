@@ -36,10 +36,10 @@ const ROLE_LABEL: Record<string, string> = {
   student: '학생',
 };
 
-function StatTile({ label, value }: { label: string; value: string }) {
+function StatTile({ label, value, stacked }: { label: string; value: string; stacked?: boolean }) {
   const textSecondary = useThemeColor({}, 'textSecondary');
   return (
-    <Card style={styles.statTile}>
+    <Card style={[styles.statTile, stacked && styles.statTileStacked]}>
       <ThemedText style={[styles.statLabel, { color: textSecondary }]}>{label}</ThemedText>
       <ThemedText style={styles.statValue}>{value}</ThemedText>
     </Card>
@@ -161,10 +161,8 @@ export default function ProfileScreen() {
   const hasEmptyProfile = !profile?.school && !profile?.phone;
   const roleLabel = viewer ? ROLE_LABEL[viewer.role] : null;
 
-  return (
-    <ScrollView
-      style={{ backgroundColor: background }}
-      contentContainerStyle={[styles.container, isWide && styles.containerWide]}>
+  const identityBlock = (
+    <>
       <View style={styles.header}>
         <Avatar name={profile?.name ?? user?.email ?? '?'} size={60} />
         <View style={styles.headerText}>
@@ -193,21 +191,11 @@ export default function ProfileScreen() {
           </ThemedText>
         </View>
       ) : null}
+    </>
+  );
 
-      {isConsultantLike ? (
-        <View style={styles.statRow}>
-          <StatTile
-            label="이번 달 진행 회차"
-            value={overview.status === 'ready' ? `${overview.data.roundsThisMonth}회` : '-'}
-          />
-          {pendingSettlement != null ? (
-            <StatTile label="정산 예정" value={`${pendingSettlement.toLocaleString('ko-KR')}원`} />
-          ) : (
-            <StatTile label="담당 학생" value={students ? `${students.length}명` : '-'} />
-          )}
-        </View>
-      ) : null}
-
+  const infoBlock = (
+    <>
       {editing ? (
         <Card style={styles.editCard}>
           <EditField label="이름" value={draft.name} onChangeText={(v) => setDraft((d) => ({ ...d, name: v }))} />
@@ -266,17 +254,60 @@ export default function ProfileScreen() {
           )}
         </Card>
       ) : null}
+    </>
+  );
 
-      <View style={styles.spacer} />
-
-      <Button
-        label="로그아웃"
-        variant="ghost"
-        onPress={signOut}
-        icon={<Ionicons name="log-out-outline" size={18} color={dangerColor} />}
-        fullWidth={!isWide}
-        style={isWide ? styles.logoutButtonWide : undefined}
+  const statsBlock = isConsultantLike ? (
+    <View style={isWide ? styles.statColumn : styles.statRow}>
+      <StatTile
+        label="이번 달 진행 회차"
+        value={overview.status === 'ready' ? `${overview.data.roundsThisMonth}회` : '-'}
+        stacked={isWide}
       />
+      {pendingSettlement != null ? (
+        <StatTile label="정산 예정" value={`${pendingSettlement.toLocaleString('ko-KR')}원`} stacked={isWide} />
+      ) : (
+        <StatTile label="담당 학생" value={students ? `${students.length}명` : '-'} stacked={isWide} />
+      )}
+    </View>
+  ) : null;
+
+  const logoutButton = (
+    <Button
+      label="로그아웃"
+      variant="ghost"
+      onPress={signOut}
+      icon={<Ionicons name="log-out-outline" size={18} color={dangerColor} />}
+      fullWidth={!isWide}
+      style={isWide ? styles.logoutButtonWide : undefined}
+    />
+  );
+
+  const showSplitColumns = isWide && statsBlock != null;
+
+  return (
+    <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
+      <View style={isWide ? [styles.wideInner, !showSplitColumns && styles.wideInnerNarrow] : undefined}>
+        {identityBlock}
+
+        {showSplitColumns ? (
+          <View style={styles.wideRow}>
+            <View style={styles.wideMain}>
+              {infoBlock}
+              <View style={styles.spacerSm} />
+              {logoutButton}
+            </View>
+            <View style={styles.wideRail}>{statsBlock}</View>
+          </View>
+        ) : (
+          <>
+            {statsBlock}
+            {infoBlock}
+            <View style={isWide ? styles.spacerSm : styles.spacer} />
+            {logoutButton}
+          </>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -316,11 +347,16 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     paddingTop: Spacing.xxxl + 20,
   },
-  containerWide: {
-    maxWidth: 560,
+  wideInner: {
     width: '100%',
+    maxWidth: 880,
     alignSelf: 'center',
   },
+  wideInnerNarrow: { maxWidth: 560 },
+  wideRow: { flexDirection: 'row', gap: Spacing.xl, alignItems: 'flex-start' },
+  wideMain: { flex: 1.5, minWidth: 0 },
+  wideRail: { flex: 1, maxWidth: 280 },
+  spacerSm: { height: Spacing.lg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -351,7 +387,9 @@ const styles = StyleSheet.create({
   warningText: { flex: 1, fontSize: 13, fontWeight: '600' },
 
   statRow: { flexDirection: 'row', gap: 10, marginBottom: Spacing.lg },
+  statColumn: { gap: 10 },
   statTile: { flex: 1, gap: 5 },
+  statTileStacked: { flex: undefined },
   statLabel: { fontSize: 11.5, fontWeight: '600' },
   statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
 
