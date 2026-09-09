@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import { unregisterChatPushNotifications } from '@/lib/push-notifications';
 import type { Database } from '@/lib/database.types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -193,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async signOut() {
+        await unregisterChatPushNotifications();
         await supabase.auth.signOut();
       },
       async refreshProfile() {
