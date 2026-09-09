@@ -79,6 +79,7 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
   // 진행 상태는 어드민이 관리하므로 컨설턴트에게는 숨긴다 (실장은 계속 봄).
   const hideStatus = viewerState.status === 'ready' && viewerState.viewer.role === 'consultant';
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [headerOpen, setHeaderOpen] = useState(false);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [sharingSessionId, setSharingSessionId] = useState<string | null>(null);
@@ -287,16 +288,27 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
       <Stack.Screen options={{ title: student.student_name, headerBackTitle: '학생' }} />
       <View style={[styles.flex, { backgroundColor: background }]}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
-          <View style={styles.header}>
-            <View style={styles.headerText}>
-              <ThemedText style={styles.name}>{student.student_name}</ThemedText>
-              <ThemedText style={[styles.headerMeta, { color: textSecondary }]}>
-                {student.service_type ?? '상품 미배정'} {student.balance.granted}회 · 잔여 {student.balance.remaining}
-                회{hideStatus ? '' : ` · ${student.status ?? '상태 미확인'}`}
-              </ThemedText>
+          <Pressable
+            style={[styles.header, { backgroundColor: surface, borderColor: border }]}
+            onPress={() => setHeaderOpen((prev) => !prev)}>
+            <Avatar name={student.student_name} size={36} />
+            <ThemedText
+              style={[styles.headerSummary, { color: textSecondary }]}
+              numberOfLines={1}>
+              {student.service_type ?? '상품 미배정'} · {student.balance.granted}회 · 잔여 {student.balance.remaining}회
+              {hideStatus ? '' : ` · ${student.status ?? '상태 미확인'}`}
+            </ThemedText>
+            <Ionicons name={headerOpen ? 'chevron-up' : 'chevron-down'} size={18} color={textSecondary} />
+          </Pressable>
+
+          {headerOpen ? (
+            <View style={[styles.headerDetail, { backgroundColor: surface, borderColor: border }]}>
+              <Badge label={student.service_type ?? '상품 미배정'} tone="primary" />
+              <Badge label={`총 ${student.balance.granted}회 · 잔여 ${student.balance.remaining}회`} tone="neutral" />
+              {hideStatus ? null : <Badge label={student.status ?? '상태 미확인'} tone="neutral" />}
+              {student.consultantName ? <Badge label={`담당 ${student.consultantName}`} tone="neutral" /> : null}
             </View>
-            <Avatar name={student.student_name} size={44} />
-          </View>
+          ) : null}
 
           <View style={[styles.card, { backgroundColor: surface }]}>
             <View style={styles.progressHeadRow}>
@@ -514,10 +526,23 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: Spacing.xl, gap: Spacing.md, paddingBottom: Spacing.xxxl },
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
-  headerText: { flexShrink: 1, gap: 2 },
-  name: { fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-  headerMeta: { fontSize: 13.5 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.lg,
+    padding: Spacing.sm + 2,
+  },
+  headerSummary: { flex: 1, fontSize: 13.5, fontWeight: '600' },
+  headerDetail: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.lg,
+    padding: Spacing.sm + 2,
+  },
   card: { borderRadius: Radius.lg, padding: 14, gap: 10 },
   progressHeadRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   progressLabel: { fontSize: 12, fontWeight: '600' },
