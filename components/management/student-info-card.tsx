@@ -25,13 +25,15 @@ function InfoField({ label, value }: InfoRow) {
 type Props = {
   student: StudentSummary;
   onSaved: () => void;
+  hideStatus?: boolean;
 };
 
 /**
  * 학생 정보 · 진행 상태 · 내부 메모를 한 서랍에 접어 넣은 카드.
  * 웹의 StudentInfoDialog + StudentInternalMemo 를 한 번에 펼치고 접는다.
+ * 진행 상태는 어드민이 관리하므로 컨설턴트에게는 hideStatus 로 숨긴다 (실장은 봄).
  */
-export function StudentInfoCard({ student, onSaved }: Props) {
+export function StudentInfoCard({ student, onSaved, hideStatus = false }: Props) {
   const [open, setOpen] = useState(false);
   const [memo, setMemo] = useState(student.internal_memo ?? '');
   const [savingMemo, setSavingMemo] = useState(false);
@@ -73,7 +75,9 @@ export function StudentInfoCard({ student, onSaved }: Props) {
   return (
     <Card>
       <Pressable style={styles.header} onPress={() => setOpen((prev) => !prev)}>
-        <ThemedText type="defaultSemiBold">학생 정보 · 진행 상태 · 내부 메모</ThemedText>
+        <ThemedText type="defaultSemiBold">
+          {hideStatus ? '학생 정보 · 내부 메모' : '학생 정보 · 진행 상태 · 내부 메모'}
+        </ThemedText>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={textSecondary} />
       </Pressable>
 
@@ -92,29 +96,31 @@ export function StudentInfoCard({ student, onSaved }: Props) {
             <InfoField label="학부모 연락처" value={student.parent_phone} />
           </View>
 
-          <View style={[styles.section, { borderTopColor: border }]}>
-            <ThemedText type="defaultSemiBold">진행 상태</ThemedText>
-            <View style={styles.chipRow}>
-              {STUDENT_STATUSES.map((option) => {
-                const selected = option === student.status;
-                return (
-                  <Pressable
-                    key={option}
-                    disabled={statusSaving !== null}
-                    onPress={() => handleChangeStatus(option)}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: selected ? primary : surfaceSecondary },
-                      statusSaving === option && styles.chipBusy,
-                    ]}>
-                    <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>
-                      {option}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
+          {!hideStatus && (
+            <View style={[styles.section, { borderTopColor: border }]}>
+              <ThemedText type="defaultSemiBold">진행 상태</ThemedText>
+              <View style={styles.chipRow}>
+                {STUDENT_STATUSES.map((option) => {
+                  const selected = option === student.status;
+                  return (
+                    <Pressable
+                      key={option}
+                      disabled={statusSaving !== null}
+                      onPress={() => handleChangeStatus(option)}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: selected ? primary : surfaceSecondary },
+                        statusSaving === option && styles.chipBusy,
+                      ]}>
+                      <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>
+                        {option}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-          </View>
+          )}
 
           <View style={[styles.section, { borderTopColor: border }]}>
             <View style={styles.noteLabelRow}>
