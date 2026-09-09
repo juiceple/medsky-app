@@ -24,10 +24,11 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before 
     마이페이지 탭 (`profile.tsx`). 홈·채팅 탭은 `useManagementViewer()`(역할: 학생 /
     컨설턴트·실장 / 해당없음)에 따라 서로 다른 화면을 그린다 — 학생이면 자기
     마이페이지·채팅방을, 컨설턴트/실장이면 담당 학생 명부·채팅 목록을 보여준다.
-  - `app/student/[id].tsx` — 컨설턴트/실장이 보는 학생 상세. 인적사항·진행 상태·내부
-    메모(`StudentInfoCard`), 수업 예약 등록/완료·노쇼·취소 처리(`ReservationPanel`),
-    회차 기록(자료 링크 포함) 목록·수정·삭제까지 웹 `/consultant/management/[studentId]`
-    와 동일한 기능을 담는다.
+  - `app/student/[id].tsx` — 컨설턴트/실장이 보는 학생 상세. 맨 위 요약 토글(회차/잔여
+    현황)을 펼치면 인적사항·진행 상태·내부 메모가 함께 나온다(`StudentTimelineScreen`
+    안에 있음, 별도 카드로 분리돼 있지 않다), 수업 예약 등록/완료·노쇼·취소 처리
+    (`ReservationPanel`), 회차 기록(자료 링크 포함) 목록·수정·삭제까지 웹
+    `/consultant/management/[studentId]` 와 동일한 기능을 담는다.
   - `app/session/[sessionId].tsx` — 회차 기록 작성/수정 화면(모달). `sessionId`가
     `'new'`면 쿼리 파라미터로 받은 `reservationId`에 새 기록을 만들고, 아니면 기존
     기록을 고친다. 웹의 `LessonSessionForm`과 같은 필드(주제/학생 공개 요약/다음
@@ -66,7 +67,8 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v54.0.0/ before 
   필요 없는 `GET /api/reservations/availability` 를 직접 부른다.
 - `components/management/` — 학생 마이페이지(`student-portal-screen`), 컨설턴트/실장
   명부(`student-roster-screen`), 채팅방(`chat-thread`), 채팅 목록(`chat-inbox-screen`),
-  학생 상세의 인적사항·진행 상태·내부 메모(`student-info-card`), 수업 예약 등록/일정
+  학생 상세 타임라인(`student-timeline-screen` — 맨 위 요약 토글 안에 인적사항·진행
+  상태·내부 메모가 같이 들어있다), 수업 예약 등록/일정
   변경/완료·노쇼·취소 처리(`reservation-panel` + 예약 팝업 `book-lesson-dialog`,
   날짜 선택 `reservation-calendar`, 시간 선택 `slot-picker` — medsky_homepage 의
   `StudentReservationPanel`/`BookLessonDialog`/`ReservationCalendar`/`SlotPicker` 와
