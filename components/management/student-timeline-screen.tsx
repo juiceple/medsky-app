@@ -13,6 +13,7 @@ import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Radius, Spacing } from '@/constants/theme';
+import { useManagementViewer } from '@/hooks/use-management-viewer';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   bookReservation,
@@ -77,6 +78,9 @@ function toSaveInput(session: LessonSessionFull, patch: Partial<LessonSessionSav
 /** 컨설턴트/실장이 보는 학생 상세 — 예약과 회차 기록을 하나의 타임라인으로 합치고, 학생 정보는 접어 넣었다. */
 export function StudentTimelineScreen({ studentId }: { studentId: string }) {
   const router = useRouter();
+  const viewerState = useManagementViewer();
+  // 진행 상태는 어드민이 관리하므로 컨설턴트에게는 숨긴다 (실장은 계속 봄).
+  const hideStatus = viewerState.status === 'ready' && viewerState.viewer.role === 'consultant';
   const [state, setState] = useState<State>({ status: 'loading' });
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
@@ -359,7 +363,7 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
               <ThemedText style={styles.name}>{student.student_name}</ThemedText>
               <ThemedText style={[styles.headerMeta, { color: textSecondary }]}>
                 {student.service_type ?? '상품 미배정'} {student.balance.granted}회 · 잔여 {student.balance.remaining}
-                회 · {student.status ?? '상태 미확인'}
+                회{hideStatus ? '' : ` · ${student.status ?? '상태 미확인'}`}
               </ThemedText>
             </View>
             <Avatar name={student.student_name} size={44} />
@@ -701,7 +705,7 @@ export function StudentTimelineScreen({ studentId }: { studentId: string }) {
             </View>
           </View>
 
-          <StudentInfoCard student={student} onSaved={load} />
+          <StudentInfoCard student={student} onSaved={load} hideStatus={hideStatus} />
           <ManagerStudentControls student={student} onSaved={load} />
         </ScrollView>
 
