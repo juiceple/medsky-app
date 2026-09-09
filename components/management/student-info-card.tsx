@@ -28,11 +28,11 @@ type Props = {
 };
 
 /**
- * 학생 상세 인적사항(학교/성적/연락처) + 진행 상태 변경 + 컨설턴트 내부 메모.
- * 웹의 StudentInfoDialog + StudentInternalMemo 를 한 카드로 합쳤다.
+ * 학생 정보 · 진행 상태 · 내부 메모를 한 서랍에 접어 넣은 카드.
+ * 웹의 StudentInfoDialog + StudentInternalMemo 를 한 번에 펼치고 접는다.
  */
 export function StudentInfoCard({ student, onSaved }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
   const [memo, setMemo] = useState(student.internal_memo ?? '');
   const [savingMemo, setSavingMemo] = useState(false);
   const [statusSaving, setStatusSaving] = useState<StudentStatus | null>(null);
@@ -71,14 +71,14 @@ export function StudentInfoCard({ student, onSaved }: Props) {
   }
 
   return (
-    <View style={styles.wrap}>
-      <Card>
-        <Pressable style={styles.header} onPress={() => setExpanded((prev) => !prev)}>
-          <ThemedText type="defaultSemiBold">학생 정보</ThemedText>
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={textSecondary} />
-        </Pressable>
+    <Card>
+      <Pressable style={styles.header} onPress={() => setOpen((prev) => !prev)}>
+        <ThemedText type="defaultSemiBold">학생 정보 · 진행 상태 · 내부 메모</ThemedText>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={textSecondary} />
+      </Pressable>
 
-        {expanded ? (
+      {open ? (
+        <View style={styles.body}>
           <View style={styles.infoGrid}>
             <InfoField label="학년" value={student.grade_level} />
             <InfoField label="계열" value={student.track} />
@@ -91,67 +91,67 @@ export function StudentInfoCard({ student, onSaved }: Props) {
             <InfoField label="학부모" value={student.parent_name} />
             <InfoField label="학부모 연락처" value={student.parent_phone} />
           </View>
-        ) : null}
-      </Card>
 
-      <Card>
-        <ThemedText type="defaultSemiBold">진행 상태</ThemedText>
-        <View style={styles.chipRow}>
-          {STUDENT_STATUSES.map((option) => {
-            const selected = option === student.status;
-            return (
-              <Pressable
-                key={option}
-                disabled={statusSaving !== null}
-                onPress={() => handleChangeStatus(option)}
-                style={[
-                  styles.chip,
-                  { backgroundColor: selected ? primary : surfaceSecondary },
-                  statusSaving === option && styles.chipBusy,
-                ]}>
-                <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>
-                  {option}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </Card>
+          <View style={[styles.section, { borderTopColor: border }]}>
+            <ThemedText type="defaultSemiBold">진행 상태</ThemedText>
+            <View style={styles.chipRow}>
+              {STUDENT_STATUSES.map((option) => {
+                const selected = option === student.status;
+                return (
+                  <Pressable
+                    key={option}
+                    disabled={statusSaving !== null}
+                    onPress={() => handleChangeStatus(option)}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: selected ? primary : surfaceSecondary },
+                      statusSaving === option && styles.chipBusy,
+                    ]}>
+                    <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>
+                      {option}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
-      <Card>
-        <View style={styles.noteLabelRow}>
-          <Ionicons name="lock-closed-outline" size={14} color={textSecondary} />
-          <ThemedText type="defaultSemiBold">내부 메모</ThemedText>
+          <View style={[styles.section, { borderTopColor: border }]}>
+            <View style={styles.noteLabelRow}>
+              <Ionicons name="lock-closed-outline" size={14} color={textSecondary} />
+              <ThemedText type="defaultSemiBold">내부 메모</ThemedText>
+            </View>
+            <ThemedText style={[styles.hint, { color: textSecondary }]}>학생에게는 보이지 않아요.</ThemedText>
+            <TextInput
+              style={[styles.textArea, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+              value={memo}
+              onChangeText={setMemo}
+              placeholder="이 학생에 대한 메모를 남겨보세요"
+              placeholderTextColor={textSecondary}
+              multiline
+            />
+            {memoDirty ? (
+              <Button label="메모 저장" size="sm" fullWidth={false} loading={savingMemo} onPress={handleSaveMemo} />
+            ) : null}
+          </View>
         </View>
-        <ThemedText style={[styles.hint, { color: textSecondary }]}>학생에게는 보이지 않아요.</ThemedText>
-        <TextInput
-          style={[styles.textArea, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-          value={memo}
-          onChangeText={setMemo}
-          placeholder="이 학생에 대한 메모를 남겨보세요"
-          placeholderTextColor={textSecondary}
-          multiline
-        />
-        {memoDirty ? (
-          <Button label="메모 저장" size="sm" fullWidth={false} loading={savingMemo} onPress={handleSaveMemo} />
-        ) : null}
-      </Card>
-    </View>
+      ) : null}
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: Spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  body: { gap: Spacing.md },
   infoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.md,
-    marginTop: Spacing.sm,
   },
   infoField: { width: '46%', gap: 2 },
   infoLabel: { fontSize: 11, fontWeight: '600' },
   infoValue: { fontSize: 14 },
+  section: { gap: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
   chipBusy: { opacity: 0.6 },
