@@ -20,8 +20,8 @@ type State =
   | { status: 'error'; message: string }
   | { status: 'ready'; students: StudentSummary[] };
 
-/** 컨설턴트(담당 학생) / 실장(전체 학생) 명부. */
-export function StudentRosterScreen() {
+/** 컨설턴트(담당 학생) / 실장(전체 학생) 명부. 실장이면 헤더에 콘솔 진입 버튼을 붙인다. */
+export function StudentRosterScreen({ isManager = false }: { isManager?: boolean }) {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
@@ -77,6 +77,13 @@ export function StudentRosterScreen() {
         <ScreenHeader
           title="담당 학생"
           subtitle={`${state.students.length}명을 관리하고 있어요`}
+          trailing={
+            isManager ? (
+              <Pressable onPress={() => router.push('/admin')} style={styles.consoleButton} hitSlop={8}>
+                <Ionicons name="settings-outline" size={22} color={textSecondary} />
+              </Pressable>
+            ) : undefined
+          }
         />
       }
       ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
@@ -119,4 +126,5 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: '700' },
   meta: { fontSize: 13 },
   empty: { textAlign: 'center', marginTop: 40, fontSize: 14 },
+  consoleButton: { padding: 4 },
 });

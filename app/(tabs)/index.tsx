@@ -32,7 +32,7 @@ export default function HomeScreen() {
   }
 
   if (viewer.role === 'consultant' || viewer.role === 'manager') {
-    return <StudentRosterScreen />;
+    return <StudentRosterScreen isManager={viewer.role === 'manager'} />;
   }
 
   return (
