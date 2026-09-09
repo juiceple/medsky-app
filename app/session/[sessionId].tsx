@@ -30,6 +30,15 @@ type Params = {
   materials?: string;
 };
 
+function parseNextActionItems(raw?: string): string[] {
+  if (!raw) return [''];
+  const items = raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  return items.length > 0 ? items : [''];
+}
+
 function parseInitialMaterials(raw?: string): LessonMaterialInput[] {
   if (!raw) return [];
   try {
@@ -68,7 +77,9 @@ export default function SessionEditorScreen() {
   const [topic, setTopic] = useState(params.topic ?? '');
   const [studentSummary, setStudentSummary] = useState(params.studentSummary ?? '');
   const [internalNote, setInternalNote] = useState(params.internalNote ?? '');
-  const [nextAction, setNextAction] = useState(params.nextAction ?? '');
+  const [nextActionItems, setNextActionItems] = useState<string[]>(
+    parseNextActionItems(params.nextAction)
+  );
   const [isSharedWithStudent, setIsSharedWithStudent] = useState(
     params.isSharedWithStudent === '1'
   );
@@ -87,6 +98,21 @@ export default function SessionEditorScreen() {
   const text = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const danger = useThemeColor({}, 'danger');
+
+  function updateNextActionItem(index: number, value: string) {
+    setNextActionItems((prev) => prev.map((item, i) => (i === index ? value : item)));
+  }
+
+  function addNextActionItem() {
+    setNextActionItems((prev) => [...prev, '']);
+  }
+
+  function removeNextActionItem(index: number) {
+    setNextActionItems((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [''];
+    });
+  }
 
   function updateMaterial(index: number, patch: Partial<LessonMaterialInput>) {
     setMaterials((prev) => prev.map((material, i) => (i === index ? { ...material, ...patch } : material)));
@@ -117,6 +143,12 @@ export default function SessionEditorScreen() {
       return;
     }
 
+    const nextAction =
+      nextActionItems
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+        .join('\n') || null;
+
     setSaving(true);
     try {
       await saveLessonSession({
@@ -130,7 +162,7 @@ export default function SessionEditorScreen() {
         topic: topic.trim() || null,
         studentSummary: studentSummary.trim() || null,
         internalNote: internalNote.trim() || null,
-        nextAction: nextAction.trim() || null,
+        nextAction,
         isSharedWithStudent,
         displayName: displayName.trim() || null,
         materials,
@@ -270,18 +302,33 @@ export default function SessionEditorScreen() {
         </Card>
 
         <Card>
-          <ThemedText style={styles.label}>다음 수업까지 할 것</ThemedText>
+          <View style={styles.sectionHeaderRow}>
+            <ThemedText style={styles.label}>다음 수업까지 할 것</ThemedText>
+            <Pressable style={[styles.addChip, { backgroundColor: primaryMuted }]} onPress={addNextActionItem}>
+              <Ionicons name="add" size={16} color={primary} />
+              <ThemedText style={[styles.addChipText, { color: primary }]}>항목 추가</ThemedText>
+            </Pressable>
+          </View>
           <ThemedText style={[styles.hint, { color: textSecondary }]}>
-            줄바꿈으로 여러 항목을 구분하면 학생 화면에서 체크리스트로 보입니다.
+            각 항목이 학생 화면에서 체크할 수 있는 할 일로 보입니다.
           </ThemedText>
-          <TextInput
-            style={[styles.input, styles.multiline, { color: text, backgroundColor: surfaceSecondary }]}
-            value={nextAction}
-            onChangeText={setNextAction}
-            placeholder={'예: 자기소개서 2차 초안 작성\n생기부 보완 자료 준비'}
-            placeholderTextColor={textSecondary}
-            multiline
-          />
+          <View style={styles.todoList}>
+            {nextActionItems.map((item, index) => (
+              <View key={index} style={styles.todoRow}>
+                <Ionicons name="ellipse-outline" size={16} color={textSecondary} />
+                <TextInput
+                  style={[styles.input, styles.todoInput, { color: text, backgroundColor: surfaceSecondary }]}
+                  value={item}
+                  onChangeText={(value) => updateNextActionItem(index, value)}
+                  placeholder={`할 일 ${index + 1}`}
+                  placeholderTextColor={textSecondary}
+                />
+                <Pressable onPress={() => removeNextActionItem(index)} hitSlop={8}>
+                  <Ionicons name="close-circle-outline" size={20} color={textSecondary} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
         </Card>
 
         <Card>
@@ -397,6 +444,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   multiline: { minHeight: 80, textAlignVertical: 'top' },
+  todoList: { gap: Spacing.sm },
+  todoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  todoInput: { flex: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
   chipText: { fontSize: 13, fontWeight: '700' },
