@@ -17,8 +17,8 @@ import { useAuth } from '@/lib/auth-context';
 import {
   confirmRecordUpload,
   createRecordUploadTicket,
+  getMySettlement,
   getRecord,
-  getSettlements,
   getStudents,
   uploadWithTicket,
 } from '@/lib/management-api';
@@ -89,9 +89,8 @@ export default function ProfileScreen() {
       // 통계 카드는 부가 정보라 실패해도 무시한다.
     }
     try {
-      const { rows } = await getSettlements();
-      const own = rows.find((row) => row.consultant.id === viewer.consultantId);
-      setPendingSettlement(own ? own.pendingAmount : null);
+      const { row } = await getMySettlement();
+      setPendingSettlement(row ? row.pendingAmount : null);
     } catch {
       setPendingSettlement(null);
     }
