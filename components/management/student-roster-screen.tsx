@@ -9,7 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { Spacing } from '@/constants/theme';
-import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useBreakpoint, useIsWorkspaceWide } from '@/hooks/use-breakpoint';
 import {
   useConsultantOverview,
   type TodayClass,
@@ -77,8 +77,10 @@ function CreditGauge({ granted, used }: { granted: number; used: number }) {
 function StudentCard({ student, onPress }: { student: StudentSummary; onPress: () => void }) {
   const textSecondary = useThemeColor({}, 'textSecondary');
   const danger = useThemeColor({}, 'danger');
+  const dangerMuted = useThemeColor({}, 'dangerMuted');
   const isStalled = student.status === '진행 정지';
   const remaining = student.balance.remaining;
+  const isOverdue = remaining < 0;
 
   return (
     <Pressable onPress={onPress} style={styles.studentCardWrap}>
@@ -120,6 +122,13 @@ function StudentCard({ student, onPress }: { student: StudentSummary; onPress: (
               </ThemedText>
             ) : null}
           </View>
+          {isOverdue ? (
+            <View style={[styles.overdueBanner, { backgroundColor: dangerMuted }]}>
+              <Ionicons name="alert-circle" size={16} color={danger} />
+              <ThemedText style={[styles.overdueText, { color: danger }]}>결제 안내가 필요합니다</ThemedText>
+              <ThemedText style={[styles.overdueAction, { color: danger }]}>안내</ThemedText>
+            </View>
+          ) : null}
         </Card>
       )}
     </Pressable>
@@ -377,6 +386,7 @@ export function StudentRosterScreen({ isManager = false }: { isManager?: boolean
   const primary = useThemeColor({}, 'primary');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const breakpoint = useBreakpoint();
+  const isWorkspaceWide = useIsWorkspaceWide();
   const { profile } = useAuth();
   const viewerState = useManagementViewer();
   const consultantName =
@@ -506,7 +516,7 @@ export function StudentRosterScreen({ isManager = false }: { isManager?: boolean
     />
   );
 
-  if (breakpoint !== 'desktop') {
+  if (!isWorkspaceWide) {
     return roster;
   }
 
@@ -612,6 +622,10 @@ const styles = StyleSheet.create({
   gaugeSegment: { flex: 1, height: 7, borderRadius: 2 },
   gaugeFooter: { flexDirection: 'row', justifyContent: 'space-between' },
   gaugeFooterText: { fontSize: 11.5 },
+
+  overdueBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, padding: 10 },
+  overdueText: { flex: 1, fontSize: 12.5, fontWeight: '600' },
+  overdueAction: { fontSize: 12.5, fontWeight: '700' },
 
   empty: { textAlign: 'center', marginTop: 40, fontSize: 14 },
 

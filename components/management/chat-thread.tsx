@@ -32,6 +32,13 @@ import type { ChatMessageView } from '@/lib/management-types';
 
 const POLL_INTERVAL_MS = 5000;
 
+const QUICK_REPLIES: { label: string; text: string }[] = [
+  { label: '수업 리마인드', text: '내일 수업 리마인드 드려요 — 시간 꼭 확인해주세요!' },
+  { label: '수업 요약 공유', text: '오늘 수업 요약을 정리해서 올려드릴게요.' },
+  { label: '생기부 요청', text: '다음 수업 전에 최신 생기부 파일 한 번 올려주실 수 있을까요?' },
+  { label: '결제 안내', text: '잔여 회차 안내와 결제 관련해서 말씀드릴게 있어요.' },
+];
+
 type State =
   | { status: 'loading' }
   | { status: 'error'; message: string }
@@ -256,7 +263,21 @@ export function ChatThread({ studentId }: { studentId?: string }) {
         }
       />
 
-      <View style={[styles.inputRow, { backgroundColor: surface, borderTopColor: border }]}>
+      <View style={[styles.composer, { backgroundColor: surface, borderTopColor: border }]}>
+        {studentId ? (
+          <View style={styles.quickReplyRow}>
+            {QUICK_REPLIES.map((reply) => (
+              <Pressable
+                key={reply.label}
+                style={[styles.quickReplyChip, { backgroundColor: primaryMuted }]}
+                onPress={() => setDraft(reply.text)}>
+                <ThemedText style={[styles.quickReplyChipText, { color: primary }]}>{reply.label}</ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.inputRow}>
         <Pressable
           style={[styles.attachButton, { backgroundColor: surfaceSecondary }]}
           onPress={handleAttach}
@@ -281,6 +302,7 @@ export function ChatThread({ studentId }: { studentId?: string }) {
           disabled={!canSend}>
           <Ionicons name="arrow-up" size={20} color={canSend ? '#fff' : primary} />
         </Pressable>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -315,12 +337,18 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 10 },
   fileChip: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   fileChipText: { textDecorationLine: 'underline' },
+  composer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  quickReplyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  quickReplyChip: { borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
+  quickReplyChipText: { fontSize: 12.5, fontWeight: '600' },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.sm,
-    padding: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
   attachButton: {
     width: 40,

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 
+import { ChatStudentInfoPanel } from '@/components/management/chat-student-info-panel';
 import { ChatThread } from '@/components/management/chat-thread';
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
@@ -11,7 +12,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Radius, Spacing } from '@/constants/theme';
-import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useBreakpoint, useIsWorkspaceWide } from '@/hooks/use-breakpoint';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { getChatInbox } from '@/lib/management-api';
 import type { ChatInboxEntry } from '@/lib/management-types';
@@ -51,12 +52,22 @@ function SearchBar({ value, onChange }: { value: string; onChange: (text: string
   );
 }
 
-function FilterChips({ filter, onChange, unreadCount }: { filter: Filter; onChange: (f: Filter) => void; unreadCount: number }) {
+function FilterChips({
+  filter,
+  onChange,
+  unreadCount,
+  totalCount,
+}: {
+  filter: Filter;
+  onChange: (f: Filter) => void;
+  unreadCount: number;
+  totalCount: number;
+}) {
   const primary = useThemeColor({}, 'primary');
   const surface = useThemeColor({}, 'surface');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const chips: { key: Filter; label: string }[] = [
-    { key: 'all', label: '전체' },
+    { key: 'all', label: `전체 ${totalCount}` },
     { key: 'unread', label: `안 읽음 ${unreadCount}` },
   ];
   return (
@@ -146,6 +157,7 @@ export function ChatInboxScreen() {
   const textTertiary = useThemeColor({}, 'textTertiary');
   const breakpoint = useBreakpoint();
   const isWide = breakpoint !== 'mobile';
+  const isWorkspaceWide = useIsWorkspaceWide();
 
   const load = useCallback(async () => {
     try {
@@ -222,7 +234,7 @@ export function ChatInboxScreen() {
             subtitle={unreadCount > 0 ? `안 읽음 ${unreadCount}` : undefined}
           />
           <SearchBar value={query} onChange={setQuery} />
-          <FilterChips filter={filter} onChange={setFilter} unreadCount={unreadCount} />
+          <FilterChips filter={filter} onChange={setFilter} unreadCount={unreadCount} totalCount={state.entries.length} />
         </View>
       }
       ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
@@ -264,6 +276,9 @@ export function ChatInboxScreen() {
           </View>
         )}
       </View>
+      {isWorkspaceWide && selectedEntry ? (
+        <ChatStudentInfoPanel key={selectedEntry.studentId} studentId={selectedEntry.studentId} />
+      ) : null}
     </View>
   );
 }
