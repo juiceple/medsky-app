@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -29,6 +29,17 @@ type Params = {
   displayName?: string;
   materials?: string;
 };
+
+type NextActionItem = { id: string; text: string };
+
+function parseInitialNextActionItems(raw?: string): NextActionItem[] {
+  if (!raw) return [];
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line, index) => ({ id: `init-${index}`, text: line }));
+}
 
 function parseInitialMaterials(raw?: string): LessonMaterialInput[] {
   if (!raw) return [];
@@ -68,7 +79,11 @@ export default function SessionEditorScreen() {
   const [topic, setTopic] = useState(params.topic ?? '');
   const [studentSummary, setStudentSummary] = useState(params.studentSummary ?? '');
   const [internalNote, setInternalNote] = useState(params.internalNote ?? '');
-  const [nextAction, setNextAction] = useState(params.nextAction ?? '');
+  const [nextActionItems, setNextActionItems] = useState<NextActionItem[]>(() =>
+    parseInitialNextActionItems(params.nextAction)
+  );
+  const nextItemIdRef = useRef(nextActionItems.length);
+  const nextActionInputRefs = useRef<Record<string, TextInput | null>>({});
   const [isSharedWithStudent, setIsSharedWithStudent] = useState(
     params.isSharedWithStudent === '1'
   );
@@ -87,6 +102,25 @@ export default function SessionEditorScreen() {
   const text = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const danger = useThemeColor({}, 'danger');
+
+  function addNextActionItem(focusAfter = true) {
+    const id = `item-${nextItemIdRef.current++}`;
+    setNextActionItems((prev) => [...prev, { id, text: '' }]);
+    if (focusAfter) {
+      requestAnimationFrame(() => {
+        nextActionInputRefs.current[id]?.focus();
+      });
+    }
+  }
+
+  function updateNextActionItem(id: string, text: string) {
+    setNextActionItems((prev) => prev.map((item) => (item.id === id ? { ...item, text } : item)));
+  }
+
+  function removeNextActionItem(id: string) {
+    setNextActionItems((prev) => prev.filter((item) => item.id !== id));
+    delete nextActionInputRefs.current[id];
+  }
 
   function updateMaterial(index: number, patch: Partial<LessonMaterialInput>) {
     setMaterials((prev) => prev.map((material, i) => (i === index ? { ...material, ...patch } : material)));
@@ -117,6 +151,11 @@ export default function SessionEditorScreen() {
       return;
     }
 
+    const nextActionText = nextActionItems
+      .map((item) => item.text.trim())
+      .filter((text) => text.length > 0)
+      .join('\n');
+
     setSaving(true);
     try {
       await saveLessonSession({
@@ -130,7 +169,7 @@ export default function SessionEditorScreen() {
         topic: topic.trim() || null,
         studentSummary: studentSummary.trim() || null,
         internalNote: internalNote.trim() || null,
-        nextAction: nextAction.trim() || null,
+        nextAction: nextActionText || null,
         isSharedWithStudent,
         displayName: displayName.trim() || null,
         materials,
@@ -268,16 +307,48 @@ export default function SessionEditorScreen() {
         <Card>
           <ThemedText style={styles.label}>다음 수업까지 할 것</ThemedText>
           <ThemedText style={[styles.hint, { color: textSecondary }]}>
-            줄바꿈으로 여러 항목을 구분하면 학생 화면에서 체크리스트로 보입니다.
+            추가한 항목은 학생 화면에서 하나씩 체크할 수 있는 투두 리스트로 보입니다.
           </ThemedText>
-          <TextInput
-            style={[styles.input, styles.multiline, { color: text, backgroundColor: surfaceSecondary }]}
-            value={nextAction}
-            onChangeText={setNextAction}
-            placeholder={'예: 자기소개서 2차 초안 작성\n생기부 보완 자료 준비'}
-            placeholderTextColor={textSecondary}
-            multiline
-          />
+
+          <View style={styles.todoList}>
+            {nextActionItems.map((item, index) => (
+              <View key={item.id} style={styles.todoRow}>
+                <View style={[styles.todoBullet, { borderColor: primary }]} />
+                <TextInput
+                  ref={(ref) => {
+                    nextActionInputRefs.current[item.id] = ref;
+                  }}
+                  style={[styles.input, styles.todoInput, { color: text, backgroundColor: surfaceSecondary }]}
+                  value={item.text}
+                  onChangeText={(value) => updateNextActionItem(item.id, value)}
+                  placeholder={`할 일 ${index + 1}`}
+                  placeholderTextColor={textSecondary}
+                  returnKeyType="next"
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => {
+                    if (index === nextActionItems.length - 1) {
+                      addNextActionItem();
+                    }
+                  }}
+                />
+                <Pressable onPress={() => removeNextActionItem(item.id)} hitSlop={8}>
+                  <Ionicons name="close-circle-outline" size={20} color={textSecondary} />
+                </Pressable>
+              </View>
+            ))}
+            {nextActionItems.length === 0 ? (
+              <ThemedText style={[styles.hint, { color: textSecondary }]}>
+                아직 추가한 할 일이 없습니다.
+              </ThemedText>
+            ) : null}
+          </View>
+
+          <Pressable
+            style={[styles.addChip, styles.addTodoChip, { backgroundColor: primaryMuted }]}
+            onPress={() => addNextActionItem()}>
+            <Ionicons name="add" size={16} color={primary} />
+            <ThemedText style={[styles.addChipText, { color: primary }]}>할 일 추가</ThemedText>
+          </Pressable>
         </Card>
 
         <Card>
@@ -433,6 +504,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   addChipText: { fontSize: 13, fontWeight: '700' },
+  addTodoChip: { alignSelf: 'flex-start' },
+  todoList: { gap: Spacing.sm },
+  todoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  todoBullet: { width: 8, height: 8, borderRadius: 4, borderWidth: 1.5 },
+  todoInput: { flex: 1 },
   materialCard: { gap: Spacing.sm },
   materialHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   materialShareRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
