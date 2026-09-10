@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge, lessonStatusTone } from '@/components/ui/badge';
 import { Radius, Spacing } from '@/constants/theme';
+import { useIsWorkspaceWide } from '@/hooks/use-breakpoint';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   confirmRecordUpload,
@@ -48,6 +49,7 @@ type State =
  */
 export function StudentPortalScreen() {
   const router = useRouter();
+  const isWorkspaceWide = useIsWorkspaceWide();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -167,142 +169,166 @@ export function StudentPortalScreen() {
   const todoSession = portal.sessions.find((session) => session.next_actions.length > 0) ?? null;
   const todoLeft = todoSession ? todoSession.next_actions.filter((item) => !item.done).length : 0;
 
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.headerTexts}>
+        <ThemedText style={styles.hd}>진행 현황</ThemedText>
+        <ThemedText style={[styles.hs, { color: textSecondary }]}>
+          {portal.student.student_name}
+          {portal.consultant ? ` · ${portal.consultant.name} 컨설턴트` : ''} · 잔여 {portal.balance.remaining}회
+        </ThemedText>
+      </View>
+      <Avatar name={portal.student.student_name} size={44} />
+    </View>
+  );
+
+  const progressCard = (
+    <View style={[styles.card, { backgroundColor: surface }]}>
+      <View style={styles.progressHeadRow}>
+        <ThemedText style={[styles.progressLabel, { color: textSecondary }]}>
+          {segmentCount}회 중 {Math.round(portal.balance.used)}회 진행
+        </ThemedText>
+        {nextUpcoming ? (
+          <ThemedText style={[styles.progressNext, { color: primary }]}>
+            {nextUpcoming.session_round}회차{' '}
+            {new Date(nextUpcoming.lesson_date).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} 예정
+          </ThemedText>
+        ) : null}
+      </View>
+      <View style={styles.segments}>
+        {Array.from({ length: segmentCount }).map((_, index) => (
+          <View
+            key={index}
+            style={[styles.segment, { backgroundColor: index < filledCount ? primary : surfaceSecondary }]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+
+  const todoCard = todoSession ? (
+    <View style={[styles.card, { backgroundColor: surface }]}>
+      <View style={styles.todoHeadRow}>
+        <ThemedText style={[styles.progressLabel, { color: textSecondary }]}>
+          {nextUpcoming ? `${nextUpcoming.session_round}회차까지 할 일` : '다음 수업까지 할 일'}
+        </ThemedText>
+        <ThemedText style={[styles.progressNext, { color: primary }]}>{todoLeft}개 남음</ThemedText>
+      </View>
+      {todoSession.next_actions.map((item) => (
+        <Pressable
+          key={item.key}
+          style={styles.checkRow}
+          onPress={() => handleToggleNextAction(todoSession.id, item.key, !item.done)}>
+          <View
+            style={[
+              styles.checkbox,
+              { borderColor: item.done ? primary : borderStrong },
+              item.done && { backgroundColor: primary },
+            ]}>
+            {item.done ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
+          </View>
+          <ThemedText
+            style={[styles.checkLabel, item.done && { color: textSecondary, textDecorationLine: 'line-through' }]}>
+            {item.text}
+          </ThemedText>
+        </Pressable>
+      ))}
+    </View>
+  ) : null;
+
+  const alwaysCard = (
+    <Pressable onPress={() => openRoom(CHAT_ALWAYS_ROOM)}>
+      {({ pressed }) => (
+        <View style={[styles.card, styles.alwaysCard, { backgroundColor: surface }, pressed && styles.pressed]}>
+          <Avatar name={portal.consultant?.name ?? '?'} size={38} />
+          <View style={styles.alwaysTexts}>
+            <ThemedText style={styles.alwaysTitle}>상시 피드백</ThemedText>
+            <ThemedText style={[styles.alwaysPreview, { color: textSecondary }]} numberOfLines={1}>
+              {rooms.always.lastMessagePreview || '회차와 무관한 질문은 여기로 편하게 보내세요.'}
+            </ThemedText>
+          </View>
+          {rooms.always.unreadCount > 0 ? (
+            <View style={[styles.unreadBadge, { backgroundColor: danger }]}>
+              <ThemedText style={styles.unreadBadgeText}>
+                {rooms.always.unreadCount > 99 ? '99+' : rooms.always.unreadCount}
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+      )}
+    </Pressable>
+  );
+
+  const timeline = (
+    <View style={styles.timeline}>
+      {portal.sessions.map((session) => (
+        <TimelineNode
+          key={session.id}
+          session={session}
+          expanded={expandedId === session.id}
+          chatCount={rooms.sessions[session.id]?.messageCount ?? 0}
+          onToggle={() => setExpandedId((current) => (current === session.id ? null : session.id))}
+          onOpenChat={() => openRoom(session.id)}
+          colors={{ surface, surfaceSecondary, border, borderStrong, textSecondary, primary, primaryMuted, success, danger }}
+        />
+      ))}
+
+      <View style={styles.nodeRow}>
+        <View style={styles.nodeRail}>
+          <View style={[styles.dashedDot, { borderColor: borderStrong }]} />
+        </View>
+        <View style={styles.nodeBody}>
+          <View style={[styles.originCard, { borderColor: borderStrong }]}>
+            <ThemedText style={styles.originTitle}>시작 · 생활기록부 제출</ThemedText>
+            {record ? (
+              <View style={styles.originRow}>
+                <Ionicons name="checkmark-circle" size={17} color={success} />
+                <ThemedText style={[styles.originFile, { color: textSecondary }]} numberOfLines={1}>
+                  {record.file_name}
+                </ThemedText>
+                <Pressable onPress={handleUploadRecord} disabled={uploading} hitSlop={8}>
+                  <ThemedText style={[styles.originAction, { color: primary }]}>
+                    {uploading ? '업로드 중…' : '교체'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={handleUploadRecord} disabled={uploading} style={styles.originRow}>
+                <Ionicons name="cloud-upload-outline" size={17} color={primary} />
+                <ThemedText style={[styles.originFile, { color: primary }]}>
+                  {uploading ? '업로드 중…' : '생활기록부 올리기'}
+                </ThemedText>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <ScrollView
       style={{ backgroundColor: background }}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, isWorkspaceWide && styles.containerWide]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={primary} />}>
-      <View style={styles.header}>
-        <View style={styles.headerTexts}>
-          <ThemedText style={styles.hd}>진행 현황</ThemedText>
-          <ThemedText style={[styles.hs, { color: textSecondary }]}>
-            {portal.student.student_name}
-            {portal.consultant ? ` · ${portal.consultant.name} 컨설턴트` : ''} · 잔여 {portal.balance.remaining}회
-          </ThemedText>
-        </View>
-        <Avatar name={portal.student.student_name} size={44} />
-      </View>
-
-      <View style={[styles.card, { backgroundColor: surface }]}>
-        <View style={styles.progressHeadRow}>
-          <ThemedText style={[styles.progressLabel, { color: textSecondary }]}>
-            {segmentCount}회 중 {Math.round(portal.balance.used)}회 진행
-          </ThemedText>
-          {nextUpcoming ? (
-            <ThemedText style={[styles.progressNext, { color: primary }]}>
-              {nextUpcoming.session_round}회차{' '}
-              {new Date(nextUpcoming.lesson_date).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} 예정
-            </ThemedText>
-          ) : null}
-        </View>
-        <View style={styles.segments}>
-          {Array.from({ length: segmentCount }).map((_, index) => (
-            <View
-              key={index}
-              style={[styles.segment, { backgroundColor: index < filledCount ? primary : surfaceSecondary }]}
-            />
-          ))}
-        </View>
-      </View>
-
-      {todoSession ? (
-        <View style={[styles.card, { backgroundColor: surface }]}>
-          <View style={styles.todoHeadRow}>
-            <ThemedText style={[styles.progressLabel, { color: textSecondary }]}>
-              {nextUpcoming ? `${nextUpcoming.session_round}회차까지 할 일` : '다음 수업까지 할 일'}
-            </ThemedText>
-            <ThemedText style={[styles.progressNext, { color: primary }]}>{todoLeft}개 남음</ThemedText>
+      {header}
+      {isWorkspaceWide ? (
+        <View style={styles.wideRow}>
+          <View style={styles.wideRail}>
+            {progressCard}
+            {todoCard}
+            {alwaysCard}
           </View>
-          {todoSession.next_actions.map((item) => (
-            <Pressable
-              key={item.key}
-              style={styles.checkRow}
-              onPress={() => handleToggleNextAction(todoSession.id, item.key, !item.done)}>
-              <View
-                style={[
-                  styles.checkbox,
-                  { borderColor: item.done ? primary : borderStrong },
-                  item.done && { backgroundColor: primary },
-                ]}>
-                {item.done ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
-              </View>
-              <ThemedText
-                style={[
-                  styles.checkLabel,
-                  item.done && { color: textSecondary, textDecorationLine: 'line-through' },
-                ]}>
-                {item.text}
-              </ThemedText>
-            </Pressable>
-          ))}
+          <View style={styles.wideMain}>{timeline}</View>
         </View>
-      ) : null}
-
-      <Pressable onPress={() => openRoom(CHAT_ALWAYS_ROOM)}>
-        {({ pressed }) => (
-          <View style={[styles.card, styles.alwaysCard, { backgroundColor: surface }, pressed && styles.pressed]}>
-            <Avatar name={portal.consultant?.name ?? '?'} size={38} />
-            <View style={styles.alwaysTexts}>
-              <ThemedText style={styles.alwaysTitle}>상시 피드백</ThemedText>
-              <ThemedText style={[styles.alwaysPreview, { color: textSecondary }]} numberOfLines={1}>
-                {rooms.always.lastMessagePreview || '회차와 무관한 질문은 여기로 편하게 보내세요.'}
-              </ThemedText>
-            </View>
-            {rooms.always.unreadCount > 0 ? (
-              <View style={[styles.unreadBadge, { backgroundColor: danger }]}>
-                <ThemedText style={styles.unreadBadgeText}>
-                  {rooms.always.unreadCount > 99 ? '99+' : rooms.always.unreadCount}
-                </ThemedText>
-              </View>
-            ) : null}
-          </View>
-        )}
-      </Pressable>
-
-      <View style={styles.timeline}>
-        {portal.sessions.map((session) => (
-          <TimelineNode
-            key={session.id}
-            session={session}
-            expanded={expandedId === session.id}
-            chatCount={rooms.sessions[session.id]?.messageCount ?? 0}
-            onToggle={() => setExpandedId((current) => (current === session.id ? null : session.id))}
-            onOpenChat={() => openRoom(session.id)}
-            colors={{ surface, surfaceSecondary, border, borderStrong, textSecondary, primary, primaryMuted, success, danger }}
-          />
-        ))}
-
-        <View style={styles.nodeRow}>
-          <View style={styles.nodeRail}>
-            <View style={[styles.dashedDot, { borderColor: borderStrong }]} />
-          </View>
-          <View style={styles.nodeBody}>
-            <View style={[styles.originCard, { borderColor: borderStrong }]}>
-              <ThemedText style={styles.originTitle}>시작 · 생활기록부 제출</ThemedText>
-              {record ? (
-                <View style={styles.originRow}>
-                  <Ionicons name="checkmark-circle" size={17} color={success} />
-                  <ThemedText style={[styles.originFile, { color: textSecondary }]} numberOfLines={1}>
-                    {record.file_name}
-                  </ThemedText>
-                  <Pressable onPress={handleUploadRecord} disabled={uploading} hitSlop={8}>
-                    <ThemedText style={[styles.originAction, { color: primary }]}>
-                      {uploading ? '업로드 중…' : '교체'}
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable onPress={handleUploadRecord} disabled={uploading} style={styles.originRow}>
-                  <Ionicons name="cloud-upload-outline" size={17} color={primary} />
-                  <ThemedText style={[styles.originFile, { color: primary }]}>
-                    {uploading ? '업로드 중…' : '생활기록부 올리기'}
-                  </ThemedText>
-                </Pressable>
-              )}
-            </View>
-          </View>
-        </View>
-      </View>
+      ) : (
+        <>
+          {progressCard}
+          {todoCard}
+          {alwaysCard}
+          {timeline}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -415,6 +441,10 @@ function TimelineNode({
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: Spacing.xl, paddingTop: Spacing.xxxl + 20, paddingBottom: 60 },
+  containerWide: { paddingHorizontal: Spacing.xxxl },
+  wideRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xl },
+  wideRail: { width: 360, flexShrink: 0 },
+  wideMain: { flex: 1, minWidth: 0 },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md, marginBottom: 14 },
   headerTexts: { flexShrink: 1, gap: 2 },
   hd: { fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
