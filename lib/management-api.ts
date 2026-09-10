@@ -384,6 +384,12 @@ export function getSettlements(
   return request(`/api/mobile/management/settlements${query}`);
 }
 
+/** 컨설턴트 본인의 정산 예정 금액. 실장 전용인 getSettlements 와 달리 일반 컨설턴트도 부를 수 있다. */
+export function getMySettlement(periodMonth?: string): Promise<{ periodMonth: string; row: SettlementRow | null }> {
+  const query = periodMonth ? `?period_month=${encodeURIComponent(periodMonth)}` : '';
+  return request(`/api/mobile/management/settlements/mine${query}`);
+}
+
 export function confirmSettlement(input: {
   consultantId: string;
   periodMonth: string;
