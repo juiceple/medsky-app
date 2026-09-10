@@ -69,12 +69,16 @@ function BottomBar(props: BottomTabBarProps) {
           if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
         };
         return (
-          <HapticTab key={route.key} onPress={onPress} style={styles.bottomBarItem} accessibilityRole="button">
+          <HapticTab
+            key={route.key}
+            onPress={onPress}
+            style={styles.bottomBarItem}
+            accessibilityRole="button"
+            accessibilityLabel={String(options.title ?? route.name)}>
             <View style={styles.bottomBarIconWrap}>
               {options.tabBarIcon?.({ focused, color, size: 24 })}
               {badge != null ? <Badge value={badge} color={danger} /> : null}
             </View>
-            <ThemedText style={[styles.bottomBarLabel, { color }]}>{String(options.title ?? route.name)}</ThemedText>
           </HapticTab>
         );
       })}
@@ -201,9 +205,8 @@ function Badge({ value, color, inline }: { value: string | number; color: string
 
 const styles = StyleSheet.create({
   bottomBar: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
-  bottomBarItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  bottomBarItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   bottomBarIconWrap: { position: 'relative' },
-  bottomBarLabel: { fontSize: 11, fontWeight: '600' },
 
   rail: {
     width: RAIL_WIDTH,
