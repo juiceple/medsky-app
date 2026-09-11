@@ -1043,27 +1043,50 @@ function TabletPortraitLayout({ ctx }: { ctx: WideCtx }) {
   );
 }
 
-/** 태블릿 가로(1112×834, 1000px 이상) — 레일 + 3열: 정보 / 예약·타임라인 / 회차 기록. */
+/** 태블릿 가로(1112×834, 1000px 이상) — 레일 + 3열: 정보(접이식) / 예약·타임라인 / 회차 기록. */
 function TabletLandscapeLayout({ ctx }: { ctx: WideCtx }) {
   const background = useThemeColor({}, 'background');
+  const surface = useThemeColor({}, 'surface');
+  const border = useThemeColor({}, 'border');
+  const textSecondary = useThemeColor({}, 'textSecondary');
   const chatCount = ctx.selectedSession ? ctx.rooms.sessions[ctx.selectedSession.id]?.messageCount ?? 0 : 0;
+  // 수업 예약·회차 기록이 화면의 중심이 되도록, 학생 정보는 기본적으로 접어 둔다.
+  const [infoCollapsed, setInfoCollapsed] = useState(true);
 
   return (
     <View style={[wideStyles.threeColRow, { backgroundColor: background }]}>
-      <ScrollView style={wideStyles.col260} contentContainerStyle={wideStyles.colContent}>
-        <StudentInfoPanel
-          student={ctx.detail.student}
-          hideStatus={ctx.hideStatus}
-          statusSaving={ctx.statusSaving}
-          onChangeStatus={ctx.onChangeStatus}
-          memo={ctx.memo}
-          onMemoChange={ctx.onMemoChange}
-          memoDirty={ctx.memoDirty}
-          savingMemo={ctx.savingMemo}
-          onSaveMemo={ctx.onSaveMemo}
-        />
-        <ManagerStudentControls student={ctx.detail.student} onSaved={ctx.reload} />
-      </ScrollView>
+      {infoCollapsed ? (
+        <View style={[wideStyles.colCollapsed, { backgroundColor: surface, borderColor: border }]}>
+          <Pressable
+            hitSlop={8}
+            onPress={() => setInfoCollapsed(false)}
+            style={wideStyles.collapsedToggle}
+            accessibilityLabel="학생 정보 펼치기">
+            <Ionicons name="person-outline" size={18} color={textSecondary} />
+            <Ionicons name="chevron-forward" size={14} color={textSecondary} />
+            <ThemedText style={[wideStyles.collapsedLabel, { color: textSecondary }]}>학생{'\n'}정보</ThemedText>
+          </Pressable>
+        </View>
+      ) : (
+        <ScrollView style={wideStyles.col260} contentContainerStyle={wideStyles.colContent}>
+          <Pressable hitSlop={8} onPress={() => setInfoCollapsed(true)} style={wideStyles.collapseButton}>
+            <Ionicons name="chevron-back" size={14} color={textSecondary} />
+            <ThemedText style={[wideStyles.collapseButtonLabel, { color: textSecondary }]}>학생 정보 접기</ThemedText>
+          </Pressable>
+          <StudentInfoPanel
+            student={ctx.detail.student}
+            hideStatus={ctx.hideStatus}
+            statusSaving={ctx.statusSaving}
+            onChangeStatus={ctx.onChangeStatus}
+            memo={ctx.memo}
+            onMemoChange={ctx.onMemoChange}
+            memoDirty={ctx.memoDirty}
+            savingMemo={ctx.savingMemo}
+            onSaveMemo={ctx.onSaveMemo}
+          />
+          <ManagerStudentControls student={ctx.detail.student} onSaved={ctx.reload} />
+        </ScrollView>
+      )}
 
       <ScrollView style={wideStyles.colFlex} contentContainerStyle={wideStyles.colContent}>
         <ProgressCard segmentCount={ctx.segmentCount} filledCount={ctx.filledCount} nextLabel={ctx.nextLabel} />
@@ -1312,6 +1335,20 @@ const wideStyles = StyleSheet.create({
   col320: { width: 320, flexShrink: 0 },
   col440: { width: 440, flexShrink: 0 },
   colFlex: { flex: 1, minWidth: 0 },
+
+  colCollapsed: {
+    width: 64,
+    flexShrink: 0,
+    marginVertical: Spacing.xl,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+  },
+  collapsedToggle: { alignItems: 'center', gap: 6 },
+  collapsedLabel: { fontSize: 10.5, fontWeight: '700', textAlign: 'center', lineHeight: 13 },
+  collapseButton: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+  collapseButtonLabel: { fontSize: 12.5, fontWeight: '600' },
 
   timelineHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   timelineHeadLabel: { fontSize: 11.5, fontWeight: '700', letterSpacing: 0.4 },
