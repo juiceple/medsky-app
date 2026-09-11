@@ -49,10 +49,20 @@ export function CollapsibleSidebar({ items }: { items: SidebarNavItem[] }) {
         { backgroundColor: surface, borderRightColor: border, paddingTop: Spacing.xxl + insets.top },
       ]}>
       <View style={[styles.sidebarBrand, collapsed && styles.sidebarBrandCollapsed]}>
-        <View style={[styles.sidebarLogo, { backgroundColor: primary }]}>
-          <ThemedText style={styles.sidebarLogoText}>M</ThemedText>
+        <View style={styles.sidebarBrandLeft}>
+          <View style={[styles.sidebarLogo, { backgroundColor: primary }]}>
+            <ThemedText style={styles.sidebarLogoText}>M</ThemedText>
+          </View>
+          {!collapsed ? <ThemedText style={styles.sidebarBrandText}>메드스카이</ThemedText> : null}
         </View>
-        {!collapsed ? <ThemedText style={styles.sidebarBrandText}>메드스카이</ThemedText> : null}
+        <Pressable
+          onPress={toggle}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+          style={styles.collapseToggle}>
+          <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-back'} size={16} color={inactive} />
+        </Pressable>
       </View>
 
       <View style={styles.sidebarNav}>
@@ -79,16 +89,6 @@ export function CollapsibleSidebar({ items }: { items: SidebarNavItem[] }) {
       </View>
 
       <View style={styles.sidebarSpacer} />
-
-      <Pressable
-        onPress={toggle}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-        style={[styles.collapseToggle, collapsed && styles.collapseToggleCollapsed]}>
-        <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-back'} size={16} color={inactive} />
-        {!collapsed ? <ThemedText style={[styles.collapseToggleLabel, { color: inactive }]}>접기</ThemedText> : null}
-      </Pressable>
 
       <View
         style={[
@@ -129,11 +129,12 @@ const styles = StyleSheet.create({
   sidebarBrand: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xxl,
   },
-  sidebarBrandCollapsed: { paddingHorizontal: 0, justifyContent: 'center' },
+  sidebarBrandCollapsed: { flexDirection: 'column', gap: Spacing.sm, paddingHorizontal: 0 },
+  sidebarBrandLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   sidebarLogo: { width: 34, height: 34, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   sidebarLogoText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   sidebarBrandText: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
@@ -150,15 +151,12 @@ const styles = StyleSheet.create({
   sidebarItemLabel: { flex: 1, fontSize: 14.5, fontWeight: '600' },
   sidebarSpacer: { flex: 1 },
   collapseToggle: {
-    flexDirection: 'row',
+    width: 28,
+    height: 28,
+    borderRadius: Radius.sm,
     alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    justifyContent: 'center',
   },
-  collapseToggleCollapsed: { paddingHorizontal: 0, justifyContent: 'center' },
-  collapseToggleLabel: { fontSize: 13, fontWeight: '600' },
   sidebarFooter: {
     flexDirection: 'row',
     alignItems: 'center',
