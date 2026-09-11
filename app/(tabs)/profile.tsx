@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -47,6 +48,7 @@ function StatTile({ label, value, stacked }: { label: string; value: string; sta
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { user, profile, signOut, refreshProfile } = useAuth();
   const viewerState = useManagementViewer();
   const breakpoint = useBreakpoint();
@@ -67,7 +69,8 @@ export default function ProfileScreen() {
 
   const viewer = viewerState.status === 'ready' ? viewerState.viewer : null;
   const isStudent = viewer?.role === 'student';
-  const isConsultantLike = viewer?.role === 'consultant' || viewer?.role === 'manager';
+  const isManager = viewer?.role === 'manager';
+  const isConsultantLike = viewer?.role === 'consultant' || isManager;
   const overview = useConsultantOverview(isConsultantLike ? students : null);
   const isWide = breakpoint !== 'mobile';
 
@@ -271,6 +274,17 @@ export default function ProfileScreen() {
     </View>
   ) : null;
 
+  const adminConsoleButton = isManager ? (
+    <Button
+      label="관리자 콘솔 열기"
+      variant="secondary"
+      onPress={() => router.push('/admin')}
+      icon={<Ionicons name="shield-checkmark-outline" size={18} color={iconColor} />}
+      fullWidth={!isWide}
+      style={isWide ? styles.logoutButtonWide : undefined}
+    />
+  ) : null;
+
   const logoutButton = (
     <Button
       label="로그아웃"
@@ -293,7 +307,12 @@ export default function ProfileScreen() {
           <View style={styles.wideRow}>
             <View style={styles.wideMain}>
               {infoBlock}
-              <View style={styles.spacerSm} />
+              {adminConsoleButton ? (
+                <>
+                  {adminConsoleButton}
+                  <View style={styles.spacerSm} />
+                </>
+              ) : null}
               {logoutButton}
             </View>
             <View style={styles.wideRail}>{statsBlock}</View>
@@ -302,6 +321,12 @@ export default function ProfileScreen() {
           <>
             {statsBlock}
             {infoBlock}
+            {adminConsoleButton ? (
+              <>
+                {adminConsoleButton}
+                <View style={styles.spacerSm} />
+              </>
+            ) : null}
             <View style={isWide ? styles.spacerSm : styles.spacer} />
             {logoutButton}
           </>

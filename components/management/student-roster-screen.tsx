@@ -483,8 +483,12 @@ export function StudentRosterScreen({ isManager = false }: { isManager?: boolean
           담당 학생 {visibleStudents.length}
         </ThemedText>
         {isManager ? (
-          <Pressable onPress={() => router.push('/admin')} style={styles.consoleButton} hitSlop={8}>
-            <Ionicons name="settings-outline" size={20} color={textSecondary} />
+          <Pressable
+            onPress={() => router.push('/admin')}
+            style={[styles.consoleButton, { backgroundColor: primary }]}
+            hitSlop={8}>
+            <Ionicons name="shield-checkmark-outline" size={15} color="#fff" />
+            <ThemedText style={styles.consoleButtonText}>관리자 콘솔</ThemedText>
           </Pressable>
         ) : null}
       </View>
@@ -600,7 +604,15 @@ const styles = StyleSheet.create({
   todoDivider: { height: 1, backgroundColor: 'rgba(17,24,39,0.06)', marginLeft: 55 },
 
   rosterHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  consoleButton: { padding: 4 },
+  consoleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  consoleButtonText: { color: '#fff', fontSize: 12.5, fontWeight: '700' },
 
   columnWrapper: { gap: Spacing.md },
   gridItem: { flex: 1, minWidth: 0 },
