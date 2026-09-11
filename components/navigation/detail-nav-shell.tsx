@@ -4,17 +4,15 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CollapsibleSidebar, type SidebarNavItem } from '@/components/navigation/collapsible-sidebar';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar } from '@/components/ui/avatar';
 import { Radius, Spacing } from '@/constants/theme';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useChatUnreadCount } from '@/hooks/use-chat-unread-count';
 import { useManagementViewer } from '@/hooks/use-management-viewer';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useAuth } from '@/lib/auth-context';
 
 const RAIL_WIDTH = 88;
-const SIDEBAR_WIDTH = 236;
 
 type DetailNavActive = 'home' | 'chat' | 'profile';
 
@@ -111,60 +109,17 @@ function Rail({ active }: { active: DetailNavActive }) {
 
 function Sidebar({ active }: { active: DetailNavActive }) {
   const items = useNavItems(active);
-  const insets = useSafeAreaInsets();
-  const { profile, user } = useAuth();
-  const surface = useThemeColor({}, 'surface');
-  const background = useThemeColor({}, 'background');
-  const border = useThemeColor({}, 'border');
-  const primary = useThemeColor({}, 'primary');
-  const primaryMuted = useThemeColor({}, 'primaryMuted');
-  const inactive = useThemeColor({}, 'textSecondary');
-  const textTertiary = useThemeColor({}, 'textTertiary');
-  const danger = useThemeColor({}, 'danger');
 
-  return (
-    <View
-      style={[
-        styles.sidebar,
-        { backgroundColor: surface, borderRightColor: border, paddingTop: Spacing.xxl + insets.top },
-      ]}>
-      <View style={styles.sidebarBrand}>
-        <View style={[styles.sidebarLogo, { backgroundColor: primary }]}>
-          <ThemedText style={styles.sidebarLogoText}>M</ThemedText>
-        </View>
-        <ThemedText style={styles.sidebarBrandText}>메드스카이</ThemedText>
-      </View>
+  const sidebarItems: SidebarNavItem[] = items.map((item) => ({
+    key: item.key,
+    label: item.label,
+    focused: item.focused,
+    badge: item.badge,
+    renderIcon: (_focused, color, size) => <Ionicons name={item.icon} size={size} color={color} />,
+    onPress: item.onPress,
+  }));
 
-      <View style={styles.sidebarNav}>
-        {items.map((item) => (
-          <Pressable
-            key={item.key}
-            onPress={item.onPress}
-            style={[styles.sidebarItem, item.focused && { backgroundColor: primaryMuted }]}>
-            <Ionicons name={item.icon} size={20} color={item.focused ? primary : inactive} />
-            <ThemedText style={[styles.sidebarItemLabel, { color: item.focused ? primary : inactive }]}>
-              {item.label}
-            </ThemedText>
-            {item.badge != null ? <Badge value={item.badge} color={danger} inline /> : null}
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={styles.sidebarSpacer} />
-
-      <View style={[styles.sidebarFooter, { backgroundColor: background }]}>
-        <Avatar name={profile?.name ?? user?.email ?? '?'} size={36} />
-        <View style={styles.sidebarFooterText}>
-          <ThemedText style={styles.sidebarFooterName} numberOfLines={1}>
-            {profile?.name ?? '이름 미등록'}
-          </ThemedText>
-          <ThemedText style={[styles.sidebarFooterEmail, { color: textTertiary }]} numberOfLines={1}>
-            {user?.email ?? ''}
-          </ThemedText>
-        </View>
-      </View>
-    </View>
-  );
+  return <CollapsibleSidebar items={sidebarItems} />;
 }
 
 function Badge({ value, color, inline }: { value: string | number; color: string; inline?: boolean }) {
@@ -203,45 +158,6 @@ const styles = StyleSheet.create({
   },
   railIconWrap: { position: 'relative' },
   railLabel: { fontSize: 11, fontWeight: '600' },
-
-  sidebar: {
-    width: SIDEBAR_WIDTH,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: Spacing.lg,
-    flexDirection: 'column',
-  },
-  sidebarBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    marginBottom: Spacing.xxl,
-  },
-  sidebarLogo: { width: 34, height: 34, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
-  sidebarLogoText: { color: '#fff', fontSize: 15, fontWeight: '800' },
-  sidebarBrandText: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
-  sidebarNav: { gap: 4 },
-  sidebarItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    height: 44,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
-  },
-  sidebarItemLabel: { flex: 1, fontSize: 14.5, fontWeight: '600' },
-  sidebarSpacer: { flex: 1 },
-  sidebarFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.lg,
-  },
-  sidebarFooterText: { flex: 1, minWidth: 0 },
-  sidebarFooterName: { fontSize: 13.5, fontWeight: '700' },
-  sidebarFooterEmail: { fontSize: 11.5 },
 
   badgeFloating: {
     position: 'absolute',
