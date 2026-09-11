@@ -25,10 +25,17 @@ import {
   createChatUploadTicket,
   getChatFileUrl,
   getChatMessages,
+  getChatRooms,
+  getStudentDetail,
   sendChatMessage,
   uploadWithTicket,
 } from '@/lib/management-api';
-import type { ChatMessageView } from '@/lib/management-types';
+import {
+  CHAT_ALWAYS_ROOM,
+  type ChatMessageView,
+  type ChatRoomsSummary,
+  type LessonSessionFull,
+} from '@/lib/management-types';
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -47,9 +54,15 @@ type State =
 /**
  * 컨설턴트 ↔ 학생 채팅방. 학생 본인은 studentId 없이(자기 방) 열고, 컨설턴트/실장은
  * 특정 학생 방을 studentId 로 지목해서 연다.
+ *
+ * studentId 로 열 때(컨설턴트/실장)는 학생의 StudentChatScreen(2a)과 같은 상시
+ * 피드백/회차별 탭을 상단에 보여준다 — 지금까지는 이 탭이 없어 학생이 특정 회차
+ * 방에 남긴 메시지가 컨설턴트 화면의 전체 대화 목록에 뒤섞여 보였다.
  */
 export function ChatThread({ studentId }: { studentId?: string }) {
   const [state, setState] = useState<State>({ status: 'loading' });
+  const [activeRoom, setActiveRoom] = useState<string>(CHAT_ALWAYS_ROOM);
+  const [rooms, setRooms] = useState<{ summary: ChatRoomsSummary; sessions: LessonSessionFull[] } | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const focused = useRef(true);
@@ -60,13 +73,14 @@ export function ChatThread({ studentId }: { studentId?: string }) {
   const border = useThemeColor({}, 'border');
   const primary = useThemeColor({}, 'primary');
   const primaryMuted = useThemeColor({}, 'primaryMuted');
+  const danger = useThemeColor({}, 'danger');
   const text = useThemeColor({}, 'text');
   const textSecondary = useThemeColor({}, 'textSecondary');
   const textTertiary = useThemeColor({}, 'textTertiary');
 
   const load = useCallback(async () => {
     try {
-      const { messages } = await getChatMessages(studentId);
+      const { messages } = await getChatMessages(studentId, studentId ? activeRoom : undefined);
       setState({ status: 'ready', messages });
     } catch (error) {
       setState({
@@ -74,24 +88,50 @@ export function ChatThread({ studentId }: { studentId?: string }) {
         message: error instanceof Error ? error.message : '불러오지 못했습니다.',
       });
     }
+  }, [studentId, activeRoom]);
+
+  // 상단 회차 스트립(상시 피드백 + 회차별) — 컨설턴트/실장이 특정 학생 방을 열 때만 있다.
+  // 학생 본인 화면은 StudentChatScreen 이 따로 담당한다.
+  const loadRooms = useCallback(async () => {
+    if (!studentId) return;
+    try {
+      const [summary, detail] = await Promise.all([getChatRooms(studentId), getStudentDetail(studentId)]);
+      setRooms({ summary, sessions: detail.sessions });
+    } catch {
+      // 스트립 갱신 실패는 조용히 무시하고 다음 폴링에서 다시 시도한다.
+    }
   }, [studentId]);
+
+  useEffect(() => {
+    setActiveRoom(CHAT_ALWAYS_ROOM);
+    setRooms(null);
+  }, [studentId]);
+
+  useEffect(() => {
+    setState({ status: 'loading' });
+    load();
+  }, [activeRoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFocusEffect(
     useCallback(() => {
       focused.current = true;
       load();
+      loadRooms();
       return () => {
         focused.current = false;
       };
-    }, [load])
+    }, [load, loadRooms])
   );
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (focused.current) load();
+      if (focused.current) {
+        load();
+        loadRooms();
+      }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [load, loadRooms]);
 
   async function handleSend(overrideBody?: string) {
     const body = (overrideBody ?? draft).trim();
@@ -100,8 +140,9 @@ export function ChatThread({ studentId }: { studentId?: string }) {
     setSending(true);
     setDraft('');
     try {
-      await sendChatMessage({ studentId, body });
+      await sendChatMessage({ studentId, room: studentId ? activeRoom : undefined, body });
       await load();
+      loadRooms();
     } catch (error) {
       Alert.alert('전송 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
       setDraft(body);
@@ -151,12 +192,14 @@ export function ChatThread({ studentId }: { studentId?: string }) {
       await uploadWithTicket(ticket, asset.uri);
       await sendChatMessage({
         studentId,
+        room: studentId ? activeRoom : undefined,
         filePath: ticket.path,
         fileName: asset.name,
         fileSize: asset.size,
         fileType: asset.mimeType,
       });
       await load();
+      loadRooms();
     } catch (error) {
       Alert.alert('첨부 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
     } finally {
@@ -173,25 +216,60 @@ export function ChatThread({ studentId }: { studentId?: string }) {
     }
   }
 
-  if (state.status === 'loading') {
-    return (
-      <View style={[styles.center, { backgroundColor: background }]}>
-        <ActivityIndicator color={primary} />
-      </View>
-    );
-  }
-
   if (state.status === 'error') {
     return <StatusMessage message={state.message} onRetry={load} />;
   }
 
   const canSend = !!draft.trim() && !sending;
 
+  // 컨설턴트/실장이 특정 학생 방을 열 때만 상단에 상시 피드백/회차별 탭을 보여준다.
+  const stripItems =
+    studentId && rooms
+      ? [
+          { key: CHAT_ALWAYS_ROOM, label: '상시 피드백', unread: rooms.summary.always.unreadCount > 0 },
+          ...rooms.sessions.map((session) => ({
+            key: session.id,
+            label: `${session.session_round}회`,
+            unread: (rooms.summary.sessions[session.id]?.unreadCount ?? 0) > 0,
+          })),
+        ]
+      : null;
+
   return (
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}>
+      {stripItems ? (
+        <View style={[styles.strip, { backgroundColor: surface, borderBottomColor: border }]}>
+          <FlatList
+            horizontal
+            data={stripItems}
+            keyExtractor={(item) => item.key}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.stripContent}
+            renderItem={({ item }) => {
+              const selected = item.key === activeRoom;
+              return (
+                <Pressable
+                  onPress={() => setActiveRoom(item.key)}
+                  style={[styles.stripPill, { backgroundColor: selected ? primary : surfaceSecondary }]}>
+                  <ThemedText style={[styles.stripPillText, { color: selected ? '#fff' : textSecondary }]}>
+                    {item.label}
+                  </ThemedText>
+                  {item.unread && !selected ? <View style={[styles.stripDot, { backgroundColor: danger }]} /> : null}
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      ) : null}
+
+      {state.status === 'loading' ? (
+        <View style={[styles.center, { flex: 1 }]}>
+          <ActivityIndicator color={primary} />
+        </View>
+      ) : (
       <FlatList
         data={[...state.messages].reverse()}
         keyExtractor={(item) => item.id}
@@ -258,10 +336,13 @@ export function ChatThread({ studentId }: { studentId?: string }) {
         }}
         ListEmptyComponent={
           <ThemedText style={[styles.emptyText, { color: textSecondary }]}>
-            아직 대화가 없어요. 먼저 메시지를 보내보세요.
+            {activeRoom === CHAT_ALWAYS_ROOM
+              ? '아직 대화가 없어요. 먼저 메시지를 보내보세요.'
+              : '이 회차에 대한 대화가 아직 없어요.'}
           </ThemedText>
         }
       />
+      )}
 
       <View style={[styles.composer, { backgroundColor: surface, borderTopColor: border }]}>
         {studentId ? (
@@ -311,6 +392,24 @@ export function ChatThread({ studentId }: { studentId?: string }) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  strip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  stripContent: { gap: 6, paddingRight: 12 },
+  stripPill: {
+    height: 28,
+    minWidth: 44,
+    paddingHorizontal: 10,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  stripPillText: { fontSize: 12, fontWeight: '700' },
+  stripDot: { width: 6, height: 6, borderRadius: 3 },
   list: { padding: Spacing.lg, gap: Spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
   emptyText: { textAlign: 'center', marginTop: 40, fontSize: 14 },
   row: {

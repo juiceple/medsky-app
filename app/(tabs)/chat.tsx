@@ -8,9 +8,9 @@ import { useManagementViewer } from '@/hooks/use-management-viewer';
 
 /**
  * 학생은 상시 피드백/회차별 대화방(StudentChatScreen, 2a)을, 컨설턴트/실장은 담당
- * 학생별 채팅 목록을 본다. 컨설턴트가 특정 학생과 나누는 대화는 여전히 기존
- * 단일 스레드(ChatThread, app/chat/[studentId].tsx)로 연다 — 회차 분리는 학생
- * 본인 화면에만 적용된다.
+ * 학생별 채팅 목록을 본다. 컨설턴트가 특정 학생과 나누는 대화는 ChatThread
+ * (app/chat/[studentId].tsx)로 여는데, ChatThread 자체도 studentId 가 있을 때는
+ * 같은 상시 피드백/회차별 탭을 상단에 보여준다.
  */
 export default function ChatScreen() {
   const viewerState = useManagementViewer();
