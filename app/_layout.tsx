@@ -56,6 +56,7 @@ function RootLayoutNav() {
   const router = useRouter();
   const viewerState = useManagementViewer();
   const isManager = viewerState.status === 'ready' && viewerState.viewer.role === 'manager';
+  const isAdmin = viewerState.status === 'ready' && viewerState.viewer.isAdmin;
 
   // useManagementViewer 는 마운트 시 한 번만 조회한다. 이 컴포넌트는 로그인 전부터
   // 떠 있으므로, 세션이 생기는 시점(로그인 완료)에 다시 불러와야 실장 여부를 알 수 있다.
@@ -111,13 +112,19 @@ function RootLayoutNav() {
           <Stack.Screen name="chat/[studentId]" options={{ title: '' }} />
           <Stack.Screen name="session/[sessionId]" options={{ title: '', presentation: 'modal' }} />
         </Stack.Protected>
-        {/* 실장(관리자) 전용 화면 — 종합 생기부 관리의 운영 콘솔. 세션이 있어도
-            실장이 아니면 접근할 수 없다(서버 API도 동일하게 막지만, 여기서도
-            직접 진입을 막아 화면이 깨지지 않게 한다). */}
+        {/* 실장 전용 화면 — 종합 생기부 관리의 운영 콘솔 중 컨설턴트 명부·학생 초대.
+            세션이 있어도 실장이 아니면 접근할 수 없다(서버 API도 동일하게 막지만,
+            여기서도 직접 진입을 막아 화면이 깨지지 않게 한다). */}
         <Stack.Protected guard={!!session && isManager}>
           <Stack.Screen name="admin/index" options={{ title: '실장 콘솔' }} />
           <Stack.Screen name="admin/consultants" options={{ title: '컨설턴트 관리' }} />
           <Stack.Screen name="admin/invitations" options={{ title: '학생 초대' }} />
+        </Stack.Protected>
+        {/* 어드민 전용 화면 — 정산·단가, 피드백·설문, 알림 관리. 실장이라도 어드민이
+            아니면 admin/index 의 관리 메뉴에 노출되지 않고, 여기서도 직접 진입을
+            막는다. 웹의 /admin/management(어드민) vs /manager/management(실장)
+            분리와 같다. */}
+        <Stack.Protected guard={!!session && isAdmin}>
           <Stack.Screen name="admin/settlements" options={{ title: '정산' }} />
           <Stack.Screen name="admin/feedback" options={{ title: '피드백 · 설문' }} />
           <Stack.Screen name="admin/notifications" options={{ title: '알림 관리' }} />
