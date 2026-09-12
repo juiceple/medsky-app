@@ -967,9 +967,9 @@ function WideHeader({
         {studentName}
       </ThemedText>
       <ThemedText style={wideStyles.balance}>
+        <ThemedText style={[wideStyles.balance, { color: textSecondary }]}>잔여 </ThemedText>
         <ThemedText style={[wideStyles.balance, { color: primary }]}>{remaining}</ThemedText>
-        <ThemedText style={[wideStyles.balance, { color: textSecondary }]}>/</ThemedText>
-        <ThemedText style={[wideStyles.balance, { color: primary }]}>{granted}</ThemedText>
+        <ThemedText style={[wideStyles.balance, { color: textSecondary }]}>/{granted}회</ThemedText>
       </ThemedText>
       <Badge label={serviceType ?? '상품 미배정'} tone="primary" />
       <Badge label={consultantName ? `담당 ${consultantName}` : '담당 미배정'} tone="neutral" />
