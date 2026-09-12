@@ -1,4 +1,4 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleProp, StyleSheet, Text, TextStyle } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -28,13 +28,21 @@ export function lessonStatusTone(status: string): BadgeTone {
   }
 }
 
-export function Badge({ label, tone = 'neutral' }: { label: string; tone?: BadgeTone }) {
+export function Badge({
+  label,
+  tone = 'neutral',
+  style,
+}: {
+  label: string;
+  tone?: BadgeTone;
+  style?: StyleProp<TextStyle>;
+}) {
   const keys = TONE_COLOR_KEYS[tone];
   const bg = useThemeColor({}, keys.bg);
   const fg = useThemeColor({}, keys.fg);
 
   return (
-    <Text style={[styles.badge, { backgroundColor: bg, color: fg }]} numberOfLines={1}>
+    <Text style={[styles.badge, { backgroundColor: bg, color: fg }, style]} numberOfLines={1}>
       {label}
     </Text>
   );
