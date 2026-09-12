@@ -971,8 +971,12 @@ function WideHeader({
         <ThemedText style={[wideStyles.balance, { color: primary }]}>{remaining}</ThemedText>
         <ThemedText style={[wideStyles.balance, { color: textSecondary }]}>/{granted}회</ThemedText>
       </ThemedText>
-      <Badge label={serviceType ?? '상품 미배정'} tone="primary" />
-      <Badge label={consultantName ? `담당 ${consultantName}` : '담당 미배정'} tone="neutral" />
+      <Badge label={serviceType ?? '상품 미배정'} tone="primary" style={wideStyles.badge} />
+      <Badge
+        label={consultantName ? `담당 ${consultantName}` : '담당 미배정'}
+        tone="neutral"
+        style={wideStyles.badge}
+      />
       <View style={wideStyles.spacer} />
       <View style={wideStyles.actions}>
         <Button
@@ -1315,6 +1319,9 @@ const wideStyles = StyleSheet.create({
   divider: { width: 1, height: 20 },
   studentName: { fontSize: 19, fontWeight: '800', letterSpacing: -0.4 },
   balance: { fontSize: 14, fontWeight: '700' },
+  // Badge 는 기본 alignSelf: 'flex-start' 라 이 행의 alignItems: 'center' 를
+  // 무시하고 위쪽에 붙는다 — 여기서만 가운데로 되돌린다.
+  badge: { alignSelf: 'center' },
   spacer: { flex: 1 },
   actions: { flexDirection: 'row', gap: Spacing.sm },
 
