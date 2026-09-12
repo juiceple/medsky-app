@@ -71,6 +71,7 @@ function ProductSwitcher({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.switcherScroll}
       contentContainerStyle={[styles.switcher, { backgroundColor: surfaceSecondary }]}>
       {products.map((product) => {
         const active = product === current;
@@ -94,6 +95,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl },
   emptyText: { textAlign: 'center', opacity: 0.7, fontSize: 14 },
+  // react-native-web 은 ScrollView 에 기본 flexGrow: 1 을 준다 — 명시하지 않으면
+  // 이 가로 스크롤 탭이 아래 명부 화면과 세로 공간을 나눠 가지면서 화면 절반을 차지한다.
+  switcherScroll: { flexGrow: 0, flexShrink: 0 },
   switcher: {
     flexDirection: 'row',
     gap: Spacing.xs,
