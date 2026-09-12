@@ -1,3 +1,4 @@
+import { deleteRequest, MobileApiError, postJson, request } from './mobile-api-client';
 import { supabase } from './supabase';
 import type {
   ChatInboxEntry,
@@ -42,53 +43,6 @@ import type {
  * 를 제공하므로, 여기서는 매 요청에 로그인한 사용자의 access_token 을 실어 보낸다.
  */
 
-const BASE_URL = process.env.EXPO_PUBLIC_HOMEPAGE_API_URL;
-
-export class ManagementApiError extends Error {}
-
-async function authHeader(): Promise<string> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) throw new ManagementApiError('로그인이 필요합니다.');
-  return `Bearer ${session.access_token}`;
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!BASE_URL) {
-    throw new ManagementApiError(
-      'EXPO_PUBLIC_HOMEPAGE_API_URL 이 설정되어 있지 않습니다. .env 를 확인해주세요.'
-    );
-  }
-
-  const authorization = await authHeader();
-
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      Authorization: authorization,
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  });
-
-  const body = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new ManagementApiError(body?.message ?? '요청에 실패했습니다.');
-  }
-
-  return body as T;
-}
-
-function postJson<T>(path: string, input: unknown): Promise<T> {
-  return request<T>(path, { method: 'POST', body: JSON.stringify(input) });
-}
-
-function deleteRequest<T>(path: string): Promise<T> {
-  return request<T>(path, { method: 'DELETE' });
-}
 
 export function getViewer(): Promise<ManagementViewer> {
   return request('/api/mobile/management/viewer');
@@ -515,5 +469,5 @@ export async function uploadWithTicket(
     .from(ticket.bucket)
     .uploadToSignedUrl(ticket.path, ticket.token, blob, { contentType: ticket.contentType });
 
-  if (error) throw new ManagementApiError(error.message);
+  if (error) throw new MobileApiError(error.message);
 }

@@ -22,6 +22,12 @@ export type ManagementViewer = {
    * `/admin/management`(어드민) vs `/manager/management`(실장) 분리와 같다.
    */
   isAdmin: boolean;
+  /**
+   * 이 컨설턴트가 담당하는 서비스 목록. 실장(role==='manager')은 서비스와 무관하게
+   * 전부 보므로 항상 빈 배열이다 — 화면 쪽에서 role==='manager' 를 "전부 열림"으로
+   * 취급해야 한다.
+   */
+  services: ConsultantService[];
 };
 
 export type LessonStatus = '예정' | '완료' | '취소' | '노쇼';
