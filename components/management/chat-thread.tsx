@@ -59,7 +59,15 @@ type State =
  * 피드백/회차별 탭을 상단에 보여준다 — 지금까지는 이 탭이 없어 학생이 특정 회차
  * 방에 남긴 메시지가 컨설턴트 화면의 전체 대화 목록에 뒤섞여 보였다.
  */
-export function ChatThread({ studentId }: { studentId?: string }) {
+export function ChatThread({
+  studentId,
+  keyboardVerticalOffset = 0,
+}: {
+  studentId?: string;
+  /** 이 화면 위에 떠 있는 헤더 높이(있다면). 없으면 0 — 탭 화면처럼 헤더가 없는
+   *  곳에 90 같은 고정값을 그대로 쓰면 키보드 위에 불필요한 빈 틈이 생긴다. */
+  keyboardVerticalOffset?: number;
+}) {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [activeRoom, setActiveRoom] = useState<string>(CHAT_ALWAYS_ROOM);
   const [rooms, setRooms] = useState<{ summary: ChatRoomsSummary; sessions: LessonSessionFull[] } | null>(null);
@@ -151,15 +159,16 @@ export function ChatThread({ studentId }: { studentId?: string }) {
     }
   }
 
-  // 웹은 onKeyPress 로 plain Enter 를 가로채(Shift+Enter 는 줄바꿈으로 남김) 여기까지 오지 않고,
-  // 네이티브(iOS/Android)는 onKeyPress 로 줄바꿈 삽입을 막을 수 없어 onChangeText 에 섞여 들어온
-  // 개행을 감지해서 전송으로 처리한다.
-  function handleChangeText(text: string) {
-    if (Platform.OS !== 'web' && text.includes('\n')) {
-      void handleSend(text.replace(/\n/g, ''));
-      return;
-    }
-    setDraft(text);
+  // 웹(react-native-web)은 실제 keydown 이벤트를 받아 shiftKey 를 구분할 수 있어
+  // onKeyPress 로 plain Enter 만 가로채 전송하고 Shift+Enter 는 줄바꿈으로 남긴다.
+  // 네이티브(iOS/Android)는 onKeyPress 가 하드웨어 키보드 입력을 안정적으로 주지
+  // 않고 shiftKey 도 안 실려 온다 — 대신 TextInput 의 submitBehavior="submit" +
+  // onSubmitEditing 을 써서 Return 키(자체 키보드·외장 키보드 모두)를 "전송"으로
+  // 다룬다. 예전에는 onChangeText 에 섞여 들어온 개행을 감지해 전송했는데, 그
+  // 방식은 여러 줄을 붙여넣기만 해도 확인 없이 바로 전송돼 버리는 문제가 있었다.
+  function handleSubmitEditing() {
+    if (Platform.OS === 'web') return; // 웹은 handleKeyPress 가 전송을 담당한다.
+    void handleSend();
   }
 
   function handleKeyPress(event: NativeSyntheticEvent<TextInputKeyPressEventData>) {
@@ -239,7 +248,7 @@ export function ChatThread({ studentId }: { studentId?: string }) {
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}>
+      keyboardVerticalOffset={keyboardVerticalOffset}>
       {stripItems ? (
         <View style={[styles.strip, { backgroundColor: surface, borderBottomColor: border }]}>
           <FlatList
@@ -368,8 +377,10 @@ export function ChatThread({ studentId }: { studentId?: string }) {
         <TextInput
           style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
           value={draft}
-          onChangeText={handleChangeText}
+          onChangeText={setDraft}
           onKeyPress={handleKeyPress}
+          onSubmitEditing={handleSubmitEditing}
+          submitBehavior={Platform.OS === 'web' ? 'newline' : 'submit'}
           placeholder="메시지 입력"
           placeholderTextColor={textTertiary}
           multiline

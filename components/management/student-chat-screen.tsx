@@ -148,15 +148,16 @@ export function StudentChatScreen() {
     }
   }
 
-  // 웹은 onKeyPress 로 plain Enter 를 가로채(Shift+Enter 는 줄바꿈으로 남김) 여기까지 오지 않고,
-  // 네이티브(iOS/Android)는 onKeyPress 로 줄바꿈 삽입을 막을 수 없어 onChangeText 에 섞여 들어온
-  // 개행을 감지해서 전송으로 처리한다.
-  function handleChangeText(text: string) {
-    if (Platform.OS !== 'web' && text.includes('\n')) {
-      void handleSend(text.replace(/\n/g, ''));
-      return;
-    }
-    setDraft(text);
+  // 웹(react-native-web)은 실제 keydown 이벤트를 받아 shiftKey 를 구분할 수 있어
+  // onKeyPress 로 plain Enter 만 가로채 전송하고 Shift+Enter 는 줄바꿈으로 남긴다.
+  // 네이티브(iOS/Android)는 onKeyPress 가 하드웨어 키보드 입력을 안정적으로 주지
+  // 않고 shiftKey 도 안 실려 온다 — 대신 TextInput 의 submitBehavior="submit" +
+  // onSubmitEditing 을 써서 Return 키(자체 키보드·외장 키보드 모두)를 "전송"으로
+  // 다룬다. 예전에는 onChangeText 에 섞여 들어온 개행을 감지해 전송했는데, 그
+  // 방식은 여러 줄을 붙여넣기만 해도 확인 없이 바로 전송돼 버리는 문제가 있었다.
+  function handleSubmitEditing() {
+    if (Platform.OS === 'web') return; // 웹은 handleKeyPress 가 전송을 담당한다.
+    void handleSend();
   }
 
   function handleKeyPress(event: NativeSyntheticEvent<TextInputKeyPressEventData>) {
@@ -270,7 +271,10 @@ export function StudentChatScreen() {
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}>
+      // 이 화면은 탭 안(헤더 없음)에서만 쓰인다 — 헤더가 있는 ChatThread 와 달리
+      // 오프셋을 더할 대상이 없다. 예전 고정값 90 은 이 화면엔 불필요한 빈 틈을,
+      // 헤더가 있는 다른 화면엔 부족한 오프셋을 만들던 값이었다.
+      keyboardVerticalOffset={0}>
       <View style={[styles.head, { backgroundColor: surface, borderBottomColor: border }]}>
         <View style={styles.headRow}>
           {!isAlways ? (
@@ -433,8 +437,10 @@ export function StudentChatScreen() {
         <TextInput
           style={[styles.input, { color: text, backgroundColor: surfaceSecondary }]}
           value={draft}
-          onChangeText={handleChangeText}
+          onChangeText={setDraft}
           onKeyPress={handleKeyPress}
+          onSubmitEditing={handleSubmitEditing}
+          submitBehavior={Platform.OS === 'web' ? 'newline' : 'submit'}
           placeholder="메시지 입력"
           placeholderTextColor={textTertiary}
           multiline
