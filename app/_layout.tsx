@@ -111,6 +111,12 @@ function RootLayoutNav() {
           <Stack.Screen name="student/[id]" options={{ title: '' }} />
           <Stack.Screen name="chat/[studentId]" options={{ title: '' }} />
           <Stack.Screen name="session/[sessionId]" options={{ title: '', presentation: 'modal' }} />
+          {/* 수시/정시 원서 컨설팅 — 종합 생기부 관리와 같은 기준으로 세션만 있으면
+              등록하고, 실제 접근 가능 여부(담당 서비스인가)는 서버(mobile API)와
+              홈 탭의 워크스페이스 전환 UI 가 가른다. */}
+          <Stack.Screen name="susi-student/[id]" options={{ title: '' }} />
+          <Stack.Screen name="susi-application/[id]" options={{ title: '' }} />
+          <Stack.Screen name="jungsi-onboarding/[id]" options={{ title: '' }} />
         </Stack.Protected>
         {/* 실장 전용 화면 — 종합 생기부 관리의 운영 콘솔 중 컨설턴트 명부·학생 초대.
             세션이 있어도 실장이 아니면 접근할 수 없다(서버 API도 동일하게 막지만,
