@@ -14,8 +14,10 @@ import { CREDIT_KINDS, type ConsultantWithServices, type CreditKind, type Studen
 type Props = { student: StudentSummary; onSaved: () => void };
 
 /**
- * 실장 전용 조작판(학생 상세 안에 끼워 넣는다): 컨설턴트 배정/재배정/배정 해제,
- * 회차 수동 보정. 컨설턴트 계정으로 보면 아예 렌더링하지 않는다.
+ * 실장 전용 조작판(학생 상세 안에 끼워 넣는다): 컨설턴트 배정/재배정/배정 해제는
+ * 실장이면 누구나, 회차 수동 보정은 어드민만 할 수 있다(웹에서 credit-adjust-form 이
+ * `/admin/management/students` 에만 있고 `/manager/management/students` 에는 없는 것과
+ * 같다). 컨설턴트 계정으로 보면 아예 렌더링하지 않는다.
  * 웹의 assign-consultant-form.tsx + credit-adjust-form.tsx 를 한 카드로 합쳤다.
  */
 export function ManagerStudentControls({ student, onSaved }: Props) {
@@ -36,6 +38,7 @@ export function ManagerStudentControls({ student, onSaved }: Props) {
   const textSecondary = useThemeColor({}, 'textSecondary');
 
   const isManager = viewerState.status === 'ready' && viewerState.viewer.role === 'manager';
+  const isAdmin = viewerState.status === 'ready' && viewerState.viewer.isAdmin;
 
   useEffect(() => {
     if (!isManager || !open || consultants) return;
@@ -82,7 +85,9 @@ export function ManagerStudentControls({ student, onSaved }: Props) {
   return (
     <Card>
       <Pressable style={styles.header} onPress={() => setOpen((prev) => !prev)}>
-        <ThemedText type="defaultSemiBold">실장 전용 · 배정 · 회차 조정</ThemedText>
+        <ThemedText type="defaultSemiBold">
+          실장 전용 · 배정{isAdmin ? ' · 회차 조정' : ''}
+        </ThemedText>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={textSecondary} />
       </Pressable>
 
@@ -126,41 +131,43 @@ export function ManagerStudentControls({ student, onSaved }: Props) {
             )}
           </View>
 
-          <View style={[styles.section, { borderTopColor: border }]}>
-            <ThemedText type="defaultSemiBold">회차 수동 보정</ThemedText>
-            <ThemedText style={[styles.hint, { color: textSecondary }]}>
-              잔여 {student.balance.remaining}회 (지급 {student.balance.granted} · 사용 {student.balance.used})
-            </ThemedText>
-            <View style={styles.chipRow}>
-              {CREDIT_KINDS.map((kind) => {
-                const selected = kind === creditKind;
-                return (
-                  <Pressable
-                    key={kind}
-                    onPress={() => setCreditKind(kind)}
-                    style={[styles.chip, { backgroundColor: selected ? primary : surfaceSecondary }]}>
-                    <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>{kind}</ThemedText>
-                  </Pressable>
-                );
-              })}
+          {isAdmin ? (
+            <View style={[styles.section, { borderTopColor: border }]}>
+              <ThemedText type="defaultSemiBold">회차 수동 보정</ThemedText>
+              <ThemedText style={[styles.hint, { color: textSecondary }]}>
+                잔여 {student.balance.remaining}회 (지급 {student.balance.granted} · 사용 {student.balance.used})
+              </ThemedText>
+              <View style={styles.chipRow}>
+                {CREDIT_KINDS.map((kind) => {
+                  const selected = kind === creditKind;
+                  return (
+                    <Pressable
+                      key={kind}
+                      onPress={() => setCreditKind(kind)}
+                      style={[styles.chip, { backgroundColor: selected ? primary : surfaceSecondary }]}>
+                      <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>{kind}</ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <TextInput
+                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+                value={creditAmount}
+                onChangeText={setCreditAmount}
+                placeholder="회차 (차감은 음수, 예: -1)"
+                placeholderTextColor={textSecondary}
+                keyboardType="numbers-and-punctuation"
+              />
+              <TextInput
+                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+                value={creditMemo}
+                onChangeText={setCreditMemo}
+                placeholder="메모 (선택)"
+                placeholderTextColor={textSecondary}
+              />
+              <Button label="조정 저장" size="sm" fullWidth={false} loading={savingCredit} onPress={handleAdjustCredits} />
             </View>
-            <TextInput
-              style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-              value={creditAmount}
-              onChangeText={setCreditAmount}
-              placeholder="회차 (차감은 음수, 예: -1)"
-              placeholderTextColor={textSecondary}
-              keyboardType="numbers-and-punctuation"
-            />
-            <TextInput
-              style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-              value={creditMemo}
-              onChangeText={setCreditMemo}
-              placeholder="메모 (선택)"
-              placeholderTextColor={textSecondary}
-            />
-            <Button label="조정 저장" size="sm" fullWidth={false} loading={savingCredit} onPress={handleAdjustCredits} />
-          </View>
+          ) : null}
         </View>
       ) : null}
     </Card>

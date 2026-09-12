@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Radius, Spacing } from '@/constants/theme';
+import { useManagementViewer } from '@/hooks/use-management-viewer';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { assignConsultant, getConsultants, getDashboard, getStudents, sendChatMessage } from '@/lib/management-api';
 import type { ConsultantLoad, ConsultantWithServices, DashboardData, StudentSummary } from '@/lib/management-types';
@@ -27,9 +28,14 @@ type State =
 
 type NavItem = { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; href: string };
 
-const NAV_ITEMS: NavItem[] = [
+/** 실장이면 누구나 볼 수 있는 메뉴 (웹의 /manager/management 와 같다). */
+const MANAGER_NAV_ITEMS: NavItem[] = [
   { key: 'consultants', label: '컨설턴트 명부', icon: 'people-outline', href: '/admin/consultants' },
   { key: 'invitations', label: '학생 초대', icon: 'mail-outline', href: '/admin/invitations' },
+];
+
+/** 어드민만 볼 수 있는 메뉴 (웹의 /admin/management 에만 있고 /manager/management 에는 없다). */
+const ADMIN_ONLY_NAV_ITEMS: NavItem[] = [
   { key: 'settlements', label: '정산·단가', icon: 'cash-outline', href: '/admin/settlements' },
   { key: 'feedback', label: '피드백·설문', icon: 'chatbox-ellipses-outline', href: '/admin/feedback' },
   { key: 'notifications', label: '알림 관리', icon: 'notifications-outline', href: '/admin/notifications' },
@@ -90,9 +96,15 @@ function EmptyRow({ message }: { message: string }) {
   );
 }
 
-/** 실장 콘솔 홈. 배정 대기·정체 학생 작업 큐를 상단에 두고, 그 아래 컨설턴트 부하와 다른 관리 화면 진입점을 둔다. */
+/**
+ * 실장 콘솔 홈. 어드민이면 배정 대기·정체 학생 작업 큐와 컨설턴트별 부하를 보여주고,
+ * 어드민이 아닌 실장이면(웹의 /manager/management 와 같다) 관리 메뉴 진입점만 보여준다.
+ */
 export function AdminDashboardScreen() {
   const router = useRouter();
+  const viewerState = useManagementViewer();
+  const isAdmin = viewerState.status === 'ready' && viewerState.viewer.isAdmin;
+
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [assignTarget, setAssignTarget] = useState<StudentSummary | null>(null);
@@ -112,6 +124,7 @@ export function AdminDashboardScreen() {
   const primaryMuted = useThemeColor({}, 'primaryMuted');
 
   const load = useCallback(async () => {
+    if (!isAdmin) return;
     try {
       const [data, { students }, { consultants }] = await Promise.all([
         getDashboard(),
@@ -127,7 +140,7 @@ export function AdminDashboardScreen() {
     } catch (error) {
       setState({ status: 'error', message: error instanceof Error ? error.message : '불러오지 못했습니다.' });
     }
-  }, []);
+  }, [isAdmin]);
 
   useFocusEffect(
     useCallback(() => {
@@ -180,6 +193,40 @@ export function AdminDashboardScreen() {
     } finally {
       setRemindingId(null);
     }
+  }
+
+  if (viewerState.status === 'loading') {
+    return (
+      <View style={[styles.center, { backgroundColor: background }]}>
+        <ActivityIndicator color={primary} />
+      </View>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
+        <ScreenHeader title="실장 콘솔" subtitle="종합 생기부 관리 운영" />
+        <ThemedText type="defaultSemiBold" style={styles.manageLabel}>
+          관리
+        </ThemedText>
+        <View style={{ gap: Spacing.sm }}>
+          {MANAGER_NAV_ITEMS.map((item) => (
+            <Pressable key={item.key} onPress={() => router.push(item.href as never)}>
+              {({ pressed }) => (
+                <Card style={[styles.navCard, pressed && styles.navCardPressed]}>
+                  <View style={[styles.navIcon, { backgroundColor: primaryMuted }]}>
+                    <Ionicons name={item.icon} size={20} color={primary} />
+                  </View>
+                  <ThemedText style={styles.navLabel}>{item.label}</ThemedText>
+                  <Ionicons name="chevron-forward" size={18} color={textSecondary} />
+                </Card>
+              )}
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    );
   }
 
   if (state.status === 'loading') {
@@ -319,7 +366,7 @@ export function AdminDashboardScreen() {
         관리
       </ThemedText>
       <View style={{ gap: Spacing.sm }}>
-        {NAV_ITEMS.map((item) => (
+        {[...MANAGER_NAV_ITEMS, ...ADMIN_ONLY_NAV_ITEMS].map((item) => (
           <Pressable key={item.key} onPress={() => router.push(item.href as never)}>
             {({ pressed }) => (
               <Card style={[styles.navCard, pressed && styles.navCardPressed]}>

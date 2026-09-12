@@ -15,6 +15,13 @@ export type ManagementViewer = {
   consultantId: string | null;
   consultantName: string | null;
   email: string | null;
+  /**
+   * 사이트 전역 어드민인지. role 이 'manager' 여도 실장(실무 매니저)과 어드민은
+   * 다르다 — 정산·단가·회차 수동조정·피드백·알림 관리·운영 대시보드는 어드민만
+   * 볼 수 있고, 어드민이 아닌 실장은 컨설턴트 명부·학생 초대만 다룬다. 웹의
+   * `/admin/management`(어드민) vs `/manager/management`(실장) 분리와 같다.
+   */
+  isAdmin: boolean;
 };
 
 export type LessonStatus = '예정' | '완료' | '취소' | '노쇼';
