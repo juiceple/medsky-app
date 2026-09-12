@@ -4,8 +4,8 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Share,
 
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
-import { Badge, type BadgeTone } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { AppModal } from '@/components/ui/app-modal';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Radius, Spacing } from '@/constants/theme';
@@ -59,11 +59,28 @@ type State =
       links: ParentLinkRow[];
     };
 
-function jobStatusTone(status: string): BadgeTone {
-  if (status === '발송') return 'success';
-  if (status === '실패') return 'danger';
-  if (status === '대기' || status === '발송중') return 'primary';
-  return 'neutral';
+function jobDotColor(status: string, colors: { success: string; danger: string; primary: string; neutral: string }) {
+  if (status === '발송') return colors.success;
+  if (status === '실패') return colors.danger;
+  if (status === '대기' || status === '발송중') return colors.primary;
+  return colors.neutral;
+}
+
+function Toggle({ on, disabled, onToggle }: { on: boolean; disabled?: boolean; onToggle: () => void }) {
+  const primary = useThemeColor({}, 'primary');
+  const border = useThemeColor({}, 'borderStrong');
+
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onToggle}
+      style={[
+        styles.toggleTrack,
+        { backgroundColor: on ? primary : border, opacity: disabled ? 0.6 : 1, justifyContent: on ? 'flex-end' : 'flex-start' },
+      ]}>
+      <View style={styles.toggleThumb} />
+    </Pressable>
+  );
 }
 
 /** 실장 전용: 알림 템플릿 on/off·카카오 템플릿 등록, 발송 로그·재시도, 학부모 링크 관리. */
@@ -82,9 +99,13 @@ export function NotificationsScreen() {
   const background = useThemeColor({}, 'background');
   const primary = useThemeColor({}, 'primary');
   const textSecondary = useThemeColor({}, 'textSecondary');
+  const textTertiary = useThemeColor({}, 'textTertiary');
   const text = useThemeColor({}, 'text');
   const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
   const border = useThemeColor({}, 'border');
+  const success = useThemeColor({}, 'success');
+  const danger = useThemeColor({}, 'danger');
+  const warning = useThemeColor({}, 'warning');
 
   const load = useCallback(async () => {
     try {
@@ -114,11 +135,7 @@ export function NotificationsScreen() {
   async function handleToggle(row: NotificationSettingRow) {
     setBusyKind(row.kind);
     try {
-      await updateNotificationTemplate({
-        kind: row.kind,
-        kakaoTemplateId: row.kakao_template_id,
-        isEnabled: !row.is_enabled,
-      });
+      await updateNotificationTemplate({ kind: row.kind, kakaoTemplateId: row.kakao_template_id, isEnabled: !row.is_enabled });
       load();
     } catch (error) {
       Alert.alert('변경 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
@@ -129,7 +146,7 @@ export function NotificationsScreen() {
 
   async function handleRegisterTemplate() {
     if (!registerFormKind || !templateId.trim()) {
-      Alert.alert('입력 필요', '알림 종류와 카카오 템플릿 ID를 입력해주세요.');
+      Alert.alert('입력 필요', '카카오 템플릿 ID를 입력해주세요.');
       return;
     }
     setRegistering(true);
@@ -209,6 +226,7 @@ export function NotificationsScreen() {
   }
 
   const { settings, log, counts, links } = state;
+  const dotColors = { success, danger, primary, neutral: textTertiary };
 
   return (
     <ScrollView
@@ -216,8 +234,6 @@ export function NotificationsScreen() {
       contentContainerStyle={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={primary} />}>
       <ScreenHeader title="알림 관리" subtitle={`대기 ${counts.pending} · 실패 ${counts.failed}`} />
-
-      <Button label="스케줄 지금 실행" variant="secondary" loading={runningSchedule} onPress={handleRunSchedule} />
 
       <View style={styles.tabRow}>
         {(['templates', 'log', 'parents'] as const).map((key) => {
@@ -232,130 +248,142 @@ export function NotificationsScreen() {
             </Pressable>
           );
         })}
+        <View style={{ flex: 1 }} />
+        <Pressable
+          disabled={runningSchedule}
+          onPress={handleRunSchedule}
+          style={[styles.outlineButton, { borderColor: border, opacity: runningSchedule ? 0.6 : 1 }]}>
+          {runningSchedule ? (
+            <ActivityIndicator size="small" color={text} />
+          ) : (
+            <ThemedText style={styles.outlineButtonLabel}>스케줄 지금 실행</ThemedText>
+          )}
+        </Pressable>
       </View>
 
       {tab === 'templates' ? (
-        <View style={{ gap: Spacing.md }}>
+        <Card padded={false} style={styles.listCard}>
           {settings.map((row) => {
             const label = NOTIFICATION_LABELS[row.kind];
-            const editingKind = registerFormKind === row.kind;
             return (
-              <Card key={row.kind} style={{ gap: Spacing.xs }}>
-                <View style={styles.rowHeader}>
+              <View key={row.kind} style={[styles.templateRow, { borderTopColor: border }]}>
+                <View style={styles.templateInfo}>
                   <ThemedText style={styles.rowName}>{label}</ThemedText>
-                  <Badge label={row.is_enabled ? '켜짐' : '꺼짐'} tone={row.is_enabled ? 'success' : 'neutral'} />
+                  <ThemedText style={[styles.templateMeta, { color: row.templateName ? textSecondary : warning }]}>
+                    {row.templateName ? `템플릿 ${row.templateName}` : '카카오 템플릿 미연결'}
+                  </ThemedText>
                 </View>
-                <ThemedText style={[styles.rowMeta, { color: textSecondary }]}>
-                  {row.templateName ? `템플릿: ${row.templateName}` : '카카오 템플릿 미연결'}
+                <Pressable
+                  onPress={() => {
+                    setRegisterFormKind(row.kind);
+                    setTemplateId(row.kakao_template_id ?? '');
+                  }}
+                  style={styles.registerLink}>
+                  <ThemedText style={[styles.registerLinkLabel, { color: primary }]}>템플릿 등록</ThemedText>
+                </Pressable>
+                <ThemedText style={[styles.stateLabel, { color: row.is_enabled ? success : textTertiary }]}>
+                  {row.is_enabled ? '켜짐' : '꺼짐'}
                 </ThemedText>
-                <View style={styles.rowButtons}>
-                  <Button
-                    label={row.is_enabled ? '끄기' : '켜기'}
-                    size="sm"
-                    variant="secondary"
-                    fullWidth={false}
-                    loading={busyKind === row.kind}
-                    onPress={() => handleToggle(row)}
-                  />
-                  <Button
-                    label="템플릿 등록"
-                    size="sm"
-                    variant="ghost"
-                    fullWidth={false}
-                    onPress={() => {
-                      setRegisterFormKind(editingKind ? null : row.kind);
-                      setTemplateId('');
-                    }}
-                  />
-                </View>
-                {editingKind ? (
-                  <View style={styles.registerForm}>
-                    <TextInput
-                      style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                      value={templateId}
-                      onChangeText={setTemplateId}
-                      placeholder="카카오 알림톡 템플릿 ID"
-                      placeholderTextColor={textSecondary}
-                    />
-                    <Button label="등록" size="sm" loading={registering} onPress={handleRegisterTemplate} />
-                  </View>
-                ) : null}
-              </Card>
+                <Toggle on={row.is_enabled} disabled={busyKind === row.kind} onToggle={() => handleToggle(row)} />
+              </View>
             );
           })}
-        </View>
+        </Card>
       ) : null}
 
       {tab === 'log' ? (
-        <View style={{ gap: Spacing.md }}>
+        <Card padded={false} style={styles.listCard}>
+          <View style={styles.headerRow}>
+            <ThemedText style={[styles.headerCell, styles.colLabel, { color: textTertiary }]}>알림</ThemedText>
+            <ThemedText style={[styles.headerCell, styles.colRecipient, { color: textTertiary }]}>수신자</ThemedText>
+            <ThemedText style={[styles.headerCell, styles.colResult, { color: textTertiary }]}>결과</ThemedText>
+          </View>
           {log.map((job) => (
-            <Card key={job.id} style={{ gap: Spacing.xs }}>
-              <View style={styles.rowHeader}>
-                <ThemedText style={styles.rowName}>{NOTIFICATION_LABELS[job.kind]}</ThemedText>
-                <Badge label={job.status} tone={jobStatusTone(job.status)} />
-              </View>
-              <ThemedText style={[styles.rowMeta, { color: textSecondary }]}>
-                {job.studentName ?? job.consultantName ?? job.recipient_name ?? '수신자 미상'}
-              </ThemedText>
-              {job.error_message ? (
-                <ThemedText style={[styles.rowBody, { color: textSecondary }]} numberOfLines={2}>
-                  {job.error_message}
+            <View key={job.id} style={[styles.logRow, { borderTopColor: border }]}>
+              <View style={styles.logTop}>
+                <View style={[styles.logLabelCell, styles.colLabel]}>
+                  <View style={[styles.dot, { backgroundColor: jobDotColor(job.status, dotColors) }]} />
+                  <ThemedText style={styles.rowName} numberOfLines={1}>
+                    {NOTIFICATION_LABELS[job.kind]}
+                  </ThemedText>
+                </View>
+                <ThemedText style={[styles.logRecipient, styles.colRecipient, { color: textSecondary }]} numberOfLines={1}>
+                  {job.studentName ?? job.consultantName ?? job.recipient_name ?? '수신자 미상'}
                 </ThemedText>
-              ) : null}
+                <ThemedText
+                  style={[styles.logResult, styles.colResult, { color: job.status === '실패' ? danger : textSecondary }]}
+                  numberOfLines={1}>
+                  {job.error_message ?? job.status}
+                </ThemedText>
+              </View>
               {job.status === '실패' ? (
-                <Button
-                  label="다시 시도"
-                  size="sm"
-                  variant="secondary"
-                  fullWidth={false}
-                  loading={busyId === job.id}
-                  onPress={() => handleRetry(job)}
-                />
+                <Pressable onPress={() => handleRetry(job)} disabled={busyId === job.id} style={[styles.smallOutline, { borderColor: border }]}>
+                  {busyId === job.id ? (
+                    <ActivityIndicator size="small" color={text} />
+                  ) : (
+                    <ThemedText style={styles.smallOutlineLabel}>다시 시도</ThemedText>
+                  )}
+                </Pressable>
               ) : null}
-            </Card>
+            </View>
           ))}
           {log.length === 0 ? (
-            <ThemedText style={[styles.empty, { color: textSecondary }]}>발송 이력이 없어요.</ThemedText>
+            <View style={styles.empty}>
+              <ThemedText style={[styles.emptyText, { color: textTertiary }]}>발송 이력이 없어요.</ThemedText>
+            </View>
           ) : null}
-        </View>
+        </Card>
       ) : null}
 
       {tab === 'parents' ? (
-        <View style={{ gap: Spacing.md }}>
+        <Card padded={false} style={styles.listCard}>
           {links.map((link) => (
-            <Card key={link.studentId} style={{ gap: Spacing.xs }}>
-              <View style={styles.rowHeader}>
+            <View key={link.studentId} style={[styles.parentRow, { borderTopColor: border }]}>
+              <View style={styles.parentInfo}>
                 <ThemedText style={styles.rowName}>{link.studentName}</ThemedText>
-                <Badge label={link.notifyEnabled ? '수신 켜짐' : '수신 꺼짐'} tone={link.notifyEnabled ? 'success' : 'neutral'} />
+                <ThemedText style={[styles.rowMeta, { color: textSecondary }]}>
+                  {link.parentName ?? '학부모 미등록'} {link.parentPhone ? `· ${link.parentPhone}` : ''}
+                </ThemedText>
               </View>
-              <ThemedText style={[styles.rowMeta, { color: textSecondary }]}>
-                {link.parentName ?? '학부모 미등록'} {link.parentPhone ? `· ${link.parentPhone}` : ''}
-              </ThemedText>
-              <View style={styles.rowButtons}>
-                <Button
-                  label={link.notifyEnabled ? '알림 끄기' : '알림 켜기'}
-                  size="sm"
-                  variant="secondary"
-                  fullWidth={false}
-                  loading={busyId === link.studentId}
-                  onPress={() => handleToggleParentNotify(link)}
-                />
-                <Button
-                  label="링크 재발급"
-                  size="sm"
-                  variant="ghost"
-                  fullWidth={false}
-                  loading={busyId === link.studentId}
-                  onPress={() => handleReissueParentLink(link)}
-                />
-              </View>
-            </Card>
+              <Badge label={link.notifyEnabled ? '수신 켜짐' : '수신 꺼짐'} tone={link.notifyEnabled ? 'success' : 'neutral'} />
+              <Pressable
+                disabled={busyId === link.studentId}
+                onPress={() => handleToggleParentNotify(link)}
+                style={[styles.smallOutline, { borderColor: border }]}>
+                <ThemedText style={styles.smallOutlineLabel}>{link.notifyEnabled ? '알림 끄기' : '알림 켜기'}</ThemedText>
+              </Pressable>
+              <Pressable
+                disabled={busyId === link.studentId}
+                onPress={() => handleReissueParentLink(link)}
+                style={styles.registerLink}>
+                <ThemedText style={[styles.registerLinkLabel, { color: primary }]}>링크 재발급</ThemedText>
+              </Pressable>
+            </View>
           ))}
           {links.length === 0 ? (
-            <ThemedText style={[styles.empty, { color: textSecondary }]}>학생이 없어요.</ThemedText>
+            <View style={styles.empty}>
+              <ThemedText style={[styles.emptyText, { color: textTertiary }]}>학생이 없어요.</ThemedText>
+            </View>
           ) : null}
-        </View>
+        </Card>
       ) : null}
+
+      <AppModal
+        visible={registerFormKind != null}
+        title="카카오 템플릿 등록"
+        subtitle={registerFormKind ? NOTIFICATION_LABELS[registerFormKind] : undefined}
+        onClose={() => setRegisterFormKind(null)}
+        onConfirm={handleRegisterTemplate}
+        confirmLabel="등록"
+        confirmLoading={registering}>
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={templateId}
+          onChangeText={setTemplateId}
+          placeholder="카카오 알림톡 템플릿 ID"
+          placeholderTextColor={textSecondary}
+        />
+      </AppModal>
     </ScrollView>
   );
 }
@@ -363,22 +391,60 @@ export function NotificationsScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: Spacing.xl, paddingTop: Spacing.xxxl + 20, paddingBottom: 60, gap: Spacing.md },
-  tabRow: { flexDirection: 'row', gap: Spacing.sm },
-  tabButton: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radius.pill, alignItems: 'center' },
-  tabText: { fontSize: 12.5, fontWeight: '700' },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowName: { fontSize: 14.5, fontWeight: '700', flexShrink: 1 },
+  tabRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  tabButton: { height: 34, paddingHorizontal: Spacing.lg, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  tabText: { fontSize: 13, fontWeight: '700' },
+  outlineButton: { height: 34, paddingHorizontal: Spacing.md, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  outlineButtonLabel: { fontSize: 12.5, fontWeight: '600' },
+  listCard: { overflow: 'hidden' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg, paddingBottom: Spacing.sm },
+  headerCell: { fontSize: 11.5, fontWeight: '600' },
+  colLabel: { flex: 1.4, minWidth: 0 },
+  colRecipient: { flex: 1, minWidth: 0 },
+  colResult: { flex: 1.6, minWidth: 0 },
+  templateRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  templateInfo: { flex: 1, minWidth: 160, gap: 2 },
+  templateMeta: { fontSize: 11.5, fontFamily: 'ui-monospace' },
+  rowName: { fontSize: 13.5, fontWeight: '700' },
   rowMeta: { fontSize: 12.5 },
-  rowBody: { fontSize: 12.5 },
-  rowButtons: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
-  registerForm: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', marginTop: Spacing.xs },
+  registerLink: { paddingVertical: Spacing.xs },
+  registerLinkLabel: { fontSize: 12, fontWeight: '600' },
+  stateLabel: { fontSize: 12, fontWeight: '700' },
+  toggleTrack: { width: 46, height: 26, borderRadius: 13, padding: 3, flexDirection: 'row' },
+  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
+  logRow: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, gap: Spacing.sm },
+  logTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  logLabelCell: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  logRecipient: { fontSize: 13 },
+  logResult: { fontSize: 12.5 },
+  smallOutline: { height: 32, paddingHorizontal: Spacing.md, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  smallOutlineLabel: { fontSize: 12.5, fontWeight: '600' },
+  parentRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  parentInfo: { flex: 1, minWidth: 160, gap: 2 },
+  empty: { padding: Spacing.xxl, alignItems: 'center' },
+  emptyText: { fontSize: 13.5 },
   input: {
-    flex: 1,
-    height: 40,
+    height: 44,
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: Spacing.md,
-    fontSize: 13,
+    fontSize: 14,
   },
-  empty: { textAlign: 'center', marginTop: 20, fontSize: 14 },
 });

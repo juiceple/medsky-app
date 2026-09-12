@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Share,
 
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
+import { AppModal } from '@/components/ui/app-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -114,9 +115,7 @@ function ServicePicker({
         return (
           <Pressable
             key={service}
-            onPress={() =>
-              onChange(selected ? value.filter((item) => item !== service) : [...value, service])
-            }
+            onPress={() => onChange(selected ? value.filter((item) => item !== service) : [...value, service])}
             style={[styles.chip, { backgroundColor: selected ? primary : surfaceSecondary }]}>
             <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>{service}</ThemedText>
           </Pressable>
@@ -124,6 +123,11 @@ function ServicePicker({
       })}
     </View>
   );
+}
+
+function FieldLabel({ label }: { label: string }) {
+  const textSecondary = useThemeColor({}, 'textSecondary');
+  return <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>{label}</ThemedText>;
 }
 
 /** 실장 전용: 컨설턴트 명부 조회, 등록/수정, 초대 발급/취소. */
@@ -138,16 +142,14 @@ export function ConsultantRosterScreen() {
   const background = useThemeColor({}, 'background');
   const primary = useThemeColor({}, 'primary');
   const textSecondary = useThemeColor({}, 'textSecondary');
+  const textTertiary = useThemeColor({}, 'textTertiary');
   const text = useThemeColor({}, 'text');
   const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
   const border = useThemeColor({}, 'border');
 
   const load = useCallback(async () => {
     try {
-      const [{ consultants }, { invitations }] = await Promise.all([
-        getConsultants(),
-        getConsultantInvitations(),
-      ]);
+      const [{ consultants }, { invitations }] = await Promise.all([getConsultants(), getConsultantInvitations()]);
       setState({ status: 'ready', consultants, invitations });
     } catch (error) {
       setState({ status: 'error', message: error instanceof Error ? error.message : '불러오지 못했습니다.' });
@@ -167,21 +169,21 @@ export function ConsultantRosterScreen() {
   }
 
   function openEdit(consultant?: ConsultantWithServices) {
-    if (consultant) {
-      setForm({
-        consultantId: consultant.id,
-        name: consultant.name,
-        track: consultant.track,
-        roleTitle: consultant.role_title,
-        phone: consultant.phone ?? '',
-        email: consultant.email ?? '',
-        career: consultant.career ?? '',
-        ratePerRound: consultant.rate_per_round ? String(consultant.rate_per_round) : '',
-        services: consultant.services,
-      });
-    } else {
-      setForm(EMPTY_FORM);
-    }
+    setForm(
+      consultant
+        ? {
+            consultantId: consultant.id,
+            name: consultant.name,
+            track: consultant.track,
+            roleTitle: consultant.role_title,
+            phone: consultant.phone ?? '',
+            email: consultant.email ?? '',
+            career: consultant.career ?? '',
+            ratePerRound: consultant.rate_per_round ? String(consultant.rate_per_round) : '',
+            services: consultant.services,
+          }
+        : EMPTY_FORM
+    );
     setFormOpen('edit');
   }
 
@@ -275,16 +277,14 @@ export function ConsultantRosterScreen() {
     return <StatusMessage message={state.message} onRetry={load} />;
   }
 
-  const pendingInvitations = state.invitations.filter((invitation) =>
-    ['발송 대기', '발송 완료'].includes(invitation.status)
-  );
+  const pendingInvitations = state.invitations.filter((invitation) => ['발송 대기', '발송 완료'].includes(invitation.status));
 
   return (
     <ScrollView
       style={{ backgroundColor: background }}
       contentContainerStyle={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={primary} />}>
-      <ScreenHeader title="컨설턴트 관리" subtitle={`${state.consultants.length}명 등록됨`} />
+      <ScreenHeader title="컨설턴트 명부" subtitle={`${state.consultants.length}명 등록됨`} />
 
       <View style={styles.actionRow}>
         <Button label="컨설턴트 등록" size="sm" fullWidth={false} onPress={() => openEdit()} style={styles.actionButton} />
@@ -296,100 +296,14 @@ export function ConsultantRosterScreen() {
           onPress={openInvite}
           style={styles.actionButton}
         />
+        <View style={{ flex: 1 }} />
+        {pendingInvitations.length > 0 ? (
+          <ThemedText style={[styles.hint, { color: textTertiary }]}>발급된 초대 {pendingInvitations.length}건 대기</ThemedText>
+        ) : null}
       </View>
 
-      {formOpen ? (
-        <Card style={styles.formCard}>
-          <ThemedText type="defaultSemiBold">
-            {formOpen === 'invite' ? '컨설턴트 초대 발급' : form.consultantId ? '컨설턴트 수정' : '컨설턴트 등록'}
-          </ThemedText>
-
-          <TextInput
-            style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-            value={form.name}
-            onChangeText={(name) => setForm((prev) => ({ ...prev, name }))}
-            placeholder="이름"
-            placeholderTextColor={textSecondary}
-          />
-
-          <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>담당 계열</ThemedText>
-          <ChipPicker
-            options={CONSULTANT_TRACKS}
-            value={form.track}
-            onChange={(track) => setForm((prev) => ({ ...prev, track }))}
-          />
-
-          <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>직책</ThemedText>
-          <ChipPicker
-            options={CONSULTANT_ROLE_TITLES}
-            value={form.roleTitle}
-            optional
-            onChange={(roleTitle) => setForm((prev) => ({ ...prev, roleTitle }))}
-          />
-
-          <TextInput
-            style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-            value={form.phone}
-            onChangeText={(phone) => setForm((prev) => ({ ...prev, phone }))}
-            placeholder="연락처 (숫자만)"
-            placeholderTextColor={textSecondary}
-            keyboardType="phone-pad"
-          />
-          <TextInput
-            style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-            value={form.email}
-            onChangeText={(email) => setForm((prev) => ({ ...prev, email }))}
-            placeholder="이메일"
-            placeholderTextColor={textSecondary}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          {formOpen === 'edit' ? (
-            <>
-              <TextInput
-                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={form.career}
-                onChangeText={(career) => setForm((prev) => ({ ...prev, career }))}
-                placeholder="경력"
-                placeholderTextColor={textSecondary}
-              />
-              <TextInput
-                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={form.ratePerRound}
-                onChangeText={(ratePerRound) => setForm((prev) => ({ ...prev, ratePerRound }))}
-                placeholder="개인 단가 (회차당 원, 비우면 직책 기본값)"
-                placeholderTextColor={textSecondary}
-                keyboardType="number-pad"
-              />
-            </>
-          ) : null}
-
-          <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>담당 서비스</ThemedText>
-          <ServicePicker
-            value={form.services}
-            onChange={(services) => setForm((prev) => ({ ...prev, services }))}
-          />
-
-          <View style={styles.formButtonRow}>
-            <Button
-              label={formOpen === 'invite' ? '초대 링크 발급' : '저장'}
-              loading={saving}
-              onPress={formOpen === 'invite' ? handleCreateInvitation : handleSaveConsultant}
-              style={styles.actionButton}
-            />
-            <Button
-              label="취소"
-              variant="secondary"
-              onPress={() => setFormOpen(null)}
-              style={styles.actionButton}
-            />
-          </View>
-        </Card>
-      ) : null}
-
       {pendingInvitations.length > 0 ? (
-        <Card>
+        <Card style={{ gap: Spacing.sm }}>
           <ThemedText type="defaultSemiBold">발급된 초대</ThemedText>
           {pendingInvitations.map((invitation) => (
             <View key={invitation.id} style={[styles.inviteRow, { borderTopColor: border }]}>
@@ -412,11 +326,11 @@ export function ConsultantRosterScreen() {
         </Card>
       ) : null}
 
-      <View style={{ gap: Spacing.md }}>
+      <View style={styles.grid}>
         {state.consultants.map((consultant) => (
-          <Pressable key={consultant.id} onPress={() => openEdit(consultant)}>
+          <Pressable key={consultant.id} onPress={() => openEdit(consultant)} style={styles.gridItem}>
             {({ pressed }) => (
-              <Card style={[styles.consultantCard, pressed && styles.cardPressed]}>
+              <Card style={[styles.consultantCard, pressed && styles.cardPressed, { borderColor: pressed ? primary : border }]}>
                 <View style={styles.consultantHeaderRow}>
                   <ThemedText style={styles.consultantName}>{consultant.name}</ThemedText>
                   {!consultant.user_id ? <Badge label="계정 미연결" tone="warning" /> : null}
@@ -424,7 +338,7 @@ export function ConsultantRosterScreen() {
                 <ThemedText style={[styles.consultantMeta, { color: textSecondary }]}>
                   {consultant.track}
                   {consultant.role_title ? ` · ${consultant.role_title}` : ''}
-                  {consultant.rate_per_round ? ` · ${consultant.rate_per_round.toLocaleString('ko-KR')}원/회` : ''}
+                  {consultant.rate_per_round ? ` · ${consultant.rate_per_round.toLocaleString('ko-KR')}원/회` : ' · 단가 미설정'}
                 </ThemedText>
                 <View style={styles.chipRow}>
                   {consultant.services.map((service) => (
@@ -436,6 +350,75 @@ export function ConsultantRosterScreen() {
           </Pressable>
         ))}
       </View>
+
+      <AppModal
+        visible={formOpen != null}
+        title={formOpen === 'invite' ? '컨설턴트 초대 발급' : form.consultantId ? '컨설턴트 정보 수정' : '컨설턴트 등록'}
+        subtitle={formOpen === 'invite' ? '이름 · 담당 계열 · 연락처 · 이메일은 필수' : undefined}
+        onClose={() => setFormOpen(null)}
+        onConfirm={formOpen === 'invite' ? handleCreateInvitation : handleSaveConsultant}
+        confirmLabel={formOpen === 'invite' ? '초대 링크 발급' : '저장'}
+        confirmLoading={saving}>
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={form.name}
+          onChangeText={(name) => setForm((prev) => ({ ...prev, name }))}
+          placeholder="이름"
+          placeholderTextColor={textSecondary}
+        />
+
+        <FieldLabel label="담당 계열" />
+        <ChipPicker options={CONSULTANT_TRACKS} value={form.track} onChange={(track) => setForm((prev) => ({ ...prev, track }))} />
+
+        <FieldLabel label="직책" />
+        <ChipPicker
+          options={CONSULTANT_ROLE_TITLES}
+          value={form.roleTitle}
+          optional
+          onChange={(roleTitle) => setForm((prev) => ({ ...prev, roleTitle }))}
+        />
+
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={form.phone}
+          onChangeText={(phone) => setForm((prev) => ({ ...prev, phone }))}
+          placeholder="연락처 (숫자만)"
+          placeholderTextColor={textSecondary}
+          keyboardType="phone-pad"
+        />
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={form.email}
+          onChangeText={(email) => setForm((prev) => ({ ...prev, email }))}
+          placeholder="이메일"
+          placeholderTextColor={textSecondary}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        {formOpen === 'edit' ? (
+          <>
+            <TextInput
+              style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+              value={form.career}
+              onChangeText={(career) => setForm((prev) => ({ ...prev, career }))}
+              placeholder="경력"
+              placeholderTextColor={textSecondary}
+            />
+            <TextInput
+              style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+              value={form.ratePerRound}
+              onChangeText={(ratePerRound) => setForm((prev) => ({ ...prev, ratePerRound }))}
+              placeholder="개인 단가 (회차당 원, 비우면 직책 기본값)"
+              placeholderTextColor={textSecondary}
+              keyboardType="number-pad"
+            />
+          </>
+        ) : null}
+
+        <FieldLabel label="담당 서비스" />
+        <ServicePicker value={form.services} onChange={(services) => setForm((prev) => ({ ...prev, services }))} />
+      </AppModal>
     </ScrollView>
   );
 }
@@ -443,9 +426,9 @@ export function ConsultantRosterScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: Spacing.xl, paddingTop: Spacing.xxxl + 20, paddingBottom: 60, gap: Spacing.md },
-  actionRow: { flexDirection: 'row', gap: Spacing.sm },
-  actionButton: { flex: 1 },
-  formCard: { gap: Spacing.sm },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  actionButton: {},
+  hint: { fontSize: 12.5 },
   fieldLabel: { fontSize: 12, fontWeight: '600', marginTop: 4 },
   input: {
     height: 44,
@@ -457,7 +440,6 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm - 2, borderRadius: Radius.pill },
   chipText: { fontSize: 12.5, fontWeight: '700' },
-  formButtonRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
   inviteRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -468,8 +450,10 @@ const styles = StyleSheet.create({
   inviteInfo: { gap: 2, flexShrink: 1 },
   inviteName: { fontSize: 14, fontWeight: '700' },
   inviteMeta: { fontSize: 12.5 },
-  consultantCard: { gap: Spacing.sm },
-  cardPressed: { opacity: 0.85 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginHorizontal: -Spacing.xs },
+  gridItem: { flexGrow: 1, flexBasis: 300, minWidth: 260, marginHorizontal: Spacing.xs },
+  consultantCard: { gap: Spacing.sm, borderWidth: 1, height: '100%' },
+  cardPressed: { opacity: 0.92 },
   consultantHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   consultantName: { fontSize: 16, fontWeight: '700' },
   consultantMeta: { fontSize: 13 },

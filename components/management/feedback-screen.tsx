@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleS
 
 import { StatusMessage } from '@/components/management/status-message';
 import { ThemedText } from '@/components/themed-text';
-import { Badge, type BadgeTone } from '@/components/ui/badge';
+import { AppModal } from '@/components/ui/app-modal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -41,15 +41,11 @@ type State =
       surveySummary: SurveySummary;
     };
 
-function statusTone(status: FeedbackStatus): BadgeTone {
-  if (status === '완료') return 'success';
-  if (status === '진행 중') return 'primary';
-  return 'neutral';
-}
-
 function formatAvg(value: number | null) {
   return value === null ? '-' : value.toFixed(1);
 }
+
+const EMPTY_SURVEY_FORM = { satisfaction: '', prepMinutes: '', maxStudents: '', desiredHourlyRate: '', requestToCompany: '' };
 
 /** 실장 전용: 운영 피드백 노트 + 컨설턴트 만족도 설문. */
 export function FeedbackScreen() {
@@ -65,16 +61,13 @@ export function FeedbackScreen() {
 
   const [surveyFormOpen, setSurveyFormOpen] = useState(false);
   const [surveyConsultantId, setSurveyConsultantId] = useState<string | null>(null);
-  const [satisfaction, setSatisfaction] = useState('');
-  const [prepMinutes, setPrepMinutes] = useState('');
-  const [maxStudents, setMaxStudents] = useState('');
-  const [desiredHourlyRate, setDesiredHourlyRate] = useState('');
-  const [requestToCompany, setRequestToCompany] = useState('');
+  const [surveyForm, setSurveyForm] = useState(EMPTY_SURVEY_FORM);
   const [savingSurvey, setSavingSurvey] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const primary = useThemeColor({}, 'primary');
   const textSecondary = useThemeColor({}, 'textSecondary');
+  const textTertiary = useThemeColor({}, 'textTertiary');
   const text = useThemeColor({}, 'text');
   const surfaceSecondary = useThemeColor({}, 'surfaceSecondary');
   const border = useThemeColor({}, 'border');
@@ -104,6 +97,12 @@ export function FeedbackScreen() {
     setRefreshing(false);
   }
 
+  function openNoteForm() {
+    setNoteConsultantId(null);
+    setNoteBody('');
+    setNoteFormOpen(true);
+  }
+
   async function handleSaveNote() {
     if (!noteConsultantId || !noteBody.trim()) {
       Alert.alert('입력 필요', '컨설턴트와 내용을 입력해주세요.');
@@ -113,8 +112,6 @@ export function FeedbackScreen() {
     try {
       await saveFeedbackNote({ consultantId: noteConsultantId, body: noteBody.trim() });
       setNoteFormOpen(false);
-      setNoteBody('');
-      setNoteConsultantId(null);
       load();
     } catch (error) {
       Alert.alert('등록 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
@@ -157,6 +154,12 @@ export function FeedbackScreen() {
     ]);
   }
 
+  function openSurveyForm() {
+    setSurveyConsultantId(null);
+    setSurveyForm(EMPTY_SURVEY_FORM);
+    setSurveyFormOpen(true);
+  }
+
   async function handleSubmitSurvey() {
     if (!surveyConsultantId) {
       Alert.alert('입력 필요', '컨설턴트를 선택해주세요.');
@@ -166,19 +169,13 @@ export function FeedbackScreen() {
     try {
       await submitConsultantSurvey({
         consultantId: surveyConsultantId,
-        satisfaction: satisfaction.trim() ? Number(satisfaction.trim()) : null,
-        prepMinutes: prepMinutes.trim() ? Number(prepMinutes.trim()) : null,
-        maxStudents: maxStudents.trim() ? Number(maxStudents.trim()) : null,
-        desiredHourlyRate: desiredHourlyRate.trim() ? Number(desiredHourlyRate.trim()) : null,
-        requestToCompany: requestToCompany.trim() || null,
+        satisfaction: surveyForm.satisfaction.trim() ? Number(surveyForm.satisfaction.trim()) : null,
+        prepMinutes: surveyForm.prepMinutes.trim() ? Number(surveyForm.prepMinutes.trim()) : null,
+        maxStudents: surveyForm.maxStudents.trim() ? Number(surveyForm.maxStudents.trim()) : null,
+        desiredHourlyRate: surveyForm.desiredHourlyRate.trim() ? Number(surveyForm.desiredHourlyRate.trim()) : null,
+        requestToCompany: surveyForm.requestToCompany.trim() || null,
       });
       setSurveyFormOpen(false);
-      setSurveyConsultantId(null);
-      setSatisfaction('');
-      setPrepMinutes('');
-      setMaxStudents('');
-      setDesiredHourlyRate('');
-      setRequestToCompany('');
       load();
     } catch (error) {
       Alert.alert('제출 실패', error instanceof Error ? error.message : '다시 시도해주세요.');
@@ -211,9 +208,7 @@ export function FeedbackScreen() {
               key={consultant.id}
               onPress={() => onChange(consultant.id)}
               style={[styles.chip, { backgroundColor: selected ? primary : surfaceSecondary }]}>
-              <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>
-                {consultant.name}
-              </ThemedText>
+              <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>{consultant.name}</ThemedText>
             </Pressable>
           );
         })}
@@ -239,157 +234,171 @@ export function FeedbackScreen() {
           style={[styles.tabButton, { backgroundColor: tab === 'surveys' ? primary : surfaceSecondary }]}>
           <ThemedText style={[styles.tabText, { color: tab === 'surveys' ? '#fff' : text }]}>만족도 설문</ThemedText>
         </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable onPress={openNoteForm} style={[styles.outlineButton, { borderColor: border }]}>
+          <ThemedText style={styles.outlineButtonLabel}>피드백 남기기</ThemedText>
+        </Pressable>
       </View>
 
       {tab === 'notes' ? (
-        <>
-          <Button
-            label={noteFormOpen ? '취소' : '피드백 남기기'}
-            variant={noteFormOpen ? 'secondary' : 'primary'}
-            onPress={() => setNoteFormOpen((prev) => !prev)}
-          />
-          {noteFormOpen ? (
-            <Card style={{ gap: Spacing.sm }}>
-              <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>컨설턴트</ThemedText>
-              <ConsultantPicker value={noteConsultantId} onChange={setNoteConsultantId} />
-              <TextInput
-                style={[styles.textArea, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={noteBody}
-                onChangeText={setNoteBody}
-                placeholder="피드백 내용"
-                placeholderTextColor={textSecondary}
-                multiline
-              />
-              <Button label="등록" loading={savingNote} onPress={handleSaveNote} />
+        <View style={{ gap: Spacing.md }}>
+          {notes.map((note) => (
+            <Card key={note.id} style={{ gap: Spacing.sm }}>
+              <View style={styles.rowHeader}>
+                <ThemedText style={styles.rowName}>{note.consultantName ?? '대상 없음'}</ThemedText>
+                {note.studentName ? (
+                  <ThemedText style={[styles.rowSub, { color: textTertiary }]}>학생: {note.studentName}</ThemedText>
+                ) : null}
+                <View style={{ flex: 1 }} />
+                <ThemedText style={[styles.rowDate, { color: textTertiary }]}>{note.created_at.slice(5, 10)}</ThemedText>
+              </View>
+              <ThemedText style={styles.rowBody}>{note.body}</ThemedText>
+              <View style={styles.chipRow}>
+                {FEEDBACK_STATUSES.map((option) => {
+                  const selected = option === note.status;
+                  return (
+                    <Pressable
+                      key={option}
+                      disabled={busyNoteId === note.id}
+                      onPress={() => handleChangeStatus(note, option)}
+                      style={[styles.statusChip, { backgroundColor: selected ? primary : surfaceSecondary }]}>
+                      <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>{option}</ThemedText>
+                    </Pressable>
+                  );
+                })}
+                <View style={{ flex: 1 }} />
+                <Pressable
+                  disabled={busyNoteId === note.id}
+                  onPress={() => handleDeleteNote(note)}
+                  style={styles.deleteButton}>
+                  <ThemedText style={[styles.deleteButtonLabel, { color: textTertiary }]}>삭제</ThemedText>
+                </Pressable>
+              </View>
+            </Card>
+          ))}
+          {notes.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <ThemedText style={[styles.emptyText, { color: textTertiary }]}>등록된 피드백이 없어요.</ThemedText>
             </Card>
           ) : null}
-
-          <View style={{ gap: Spacing.md }}>
-            {notes.map((note) => (
-              <Card key={note.id} style={{ gap: Spacing.xs }}>
-                <View style={styles.rowHeader}>
-                  <ThemedText style={styles.rowName}>{note.consultantName ?? '대상 없음'}</ThemedText>
-                  <Badge label={note.status} tone={statusTone(note.status)} />
-                </View>
-                {note.studentName ? (
-                  <ThemedText style={[styles.rowMeta, { color: textSecondary }]}>학생: {note.studentName}</ThemedText>
-                ) : null}
-                <ThemedText style={styles.rowBody}>{note.body}</ThemedText>
-                <View style={styles.chipRow}>
-                  {FEEDBACK_STATUSES.map((option) => {
-                    const selected = option === note.status;
-                    return (
-                      <Pressable
-                        key={option}
-                        disabled={busyNoteId === note.id}
-                        onPress={() => handleChangeStatus(note, option)}
-                        style={[styles.chip, { backgroundColor: selected ? primary : surfaceSecondary }]}>
-                        <ThemedText style={[styles.chipText, { color: selected ? '#fff' : text }]}>
-                          {option}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                  <Button
-                    label="삭제"
-                    size="sm"
-                    variant="ghost"
-                    fullWidth={false}
-                    loading={busyNoteId === note.id}
-                    onPress={() => handleDeleteNote(note)}
-                  />
-                </View>
-              </Card>
-            ))}
-            {notes.length === 0 ? (
-              <ThemedText style={[styles.empty, { color: textSecondary }]}>등록된 피드백이 없어요.</ThemedText>
-            ) : null}
-          </View>
-        </>
+        </View>
       ) : (
-        <>
-          <Card style={styles.summaryCard}>
-            <ThemedText type="defaultSemiBold">평균 ({surveySummary.count}건)</ThemedText>
+        <View style={{ gap: Spacing.md }}>
+          <Card style={styles.summaryCard} padded={false}>
             <View style={styles.summaryGrid}>
-              <ThemedText style={styles.summaryItem}>만족도 {formatAvg(surveySummary.avgSatisfaction)}</ThemedText>
-              <ThemedText style={styles.summaryItem}>준비시간 {formatAvg(surveySummary.avgPrepMinutes)}분</ThemedText>
-              <ThemedText style={styles.summaryItem}>희망학생수 {formatAvg(surveySummary.avgMaxStudents)}</ThemedText>
-              <ThemedText style={styles.summaryItem}>희망시급 {formatAvg(surveySummary.avgDesiredRate)}원</ThemedText>
+              <View style={styles.summaryTile}>
+                <ThemedText style={styles.summaryValue}>{formatAvg(surveySummary.avgSatisfaction)}</ThemedText>
+                <ThemedText style={[styles.summaryLabel, { color: textSecondary }]}>평균 만족도</ThemedText>
+              </View>
+              <View style={styles.summaryTile}>
+                <ThemedText style={styles.summaryValue}>{formatAvg(surveySummary.avgPrepMinutes)}분</ThemedText>
+                <ThemedText style={[styles.summaryLabel, { color: textSecondary }]}>평균 준비시간</ThemedText>
+              </View>
+              <View style={styles.summaryTile}>
+                <ThemedText style={styles.summaryValue}>{formatAvg(surveySummary.avgMaxStudents)}</ThemedText>
+                <ThemedText style={[styles.summaryLabel, { color: textSecondary }]}>평균 희망 학생수</ThemedText>
+              </View>
+              <View style={styles.summaryTile}>
+                <ThemedText style={styles.summaryValue}>{surveySummary.count}건</ThemedText>
+                <ThemedText style={[styles.summaryLabel, { color: textSecondary }]}>수집 설문</ThemedText>
+              </View>
             </View>
           </Card>
 
-          <Button
-            label={surveyFormOpen ? '취소' : '설문 대신 제출'}
-            variant={surveyFormOpen ? 'secondary' : 'primary'}
-            onPress={() => setSurveyFormOpen((prev) => !prev)}
-          />
-          {surveyFormOpen ? (
-            <Card style={{ gap: Spacing.sm }}>
-              <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>컨설턴트</ThemedText>
-              <ConsultantPicker value={surveyConsultantId} onChange={setSurveyConsultantId} />
-              <TextInput
-                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={satisfaction}
-                onChangeText={setSatisfaction}
-                placeholder="만족도 (1~10)"
-                placeholderTextColor={textSecondary}
-                keyboardType="number-pad"
-              />
-              <TextInput
-                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={prepMinutes}
-                onChangeText={setPrepMinutes}
-                placeholder="준비 시간(분)"
-                placeholderTextColor={textSecondary}
-                keyboardType="number-pad"
-              />
-              <TextInput
-                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={maxStudents}
-                onChangeText={setMaxStudents}
-                placeholder="맡을 수 있는 학생 수"
-                placeholderTextColor={textSecondary}
-                keyboardType="number-pad"
-              />
-              <TextInput
-                style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={desiredHourlyRate}
-                onChangeText={setDesiredHourlyRate}
-                placeholder="희망 시급(원)"
-                placeholderTextColor={textSecondary}
-                keyboardType="number-pad"
-              />
-              <TextInput
-                style={[styles.textArea, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
-                value={requestToCompany}
-                onChangeText={setRequestToCompany}
-                placeholder="회사에 바라는 점"
-                placeholderTextColor={textSecondary}
-                multiline
-              />
-              <Button label="제출" loading={savingSurvey} onPress={handleSubmitSurvey} />
+          <Button label="컨설턴트 대신 제출" variant="secondary" onPress={openSurveyForm} />
+
+          {surveys.map((survey) => (
+            <Card key={survey.id} style={{ gap: Spacing.xs }}>
+              <View style={styles.rowHeader}>
+                <ThemedText style={styles.rowName}>{survey.consultantName ?? '알 수 없음'}</ThemedText>
+                <View style={{ flex: 1 }} />
+                <ThemedText style={[styles.rowDate, { color: textTertiary }]}>{survey.submitted_at.slice(5, 10)}</ThemedText>
+              </View>
+              <ThemedText style={[styles.rowMeta, { color: textSecondary }]}>
+                만족도 {survey.satisfaction ?? '-'} · 준비 {survey.prep_minutes ?? '-'}분 · 희망 학생수 {survey.max_students ?? '-'}명
+              </ThemedText>
+              {survey.request_to_company ? <ThemedText style={styles.rowBody}>{survey.request_to_company}</ThemedText> : null}
+            </Card>
+          ))}
+          {surveys.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <ThemedText style={[styles.emptyText, { color: textTertiary }]}>제출된 설문이 없어요.</ThemedText>
             </Card>
           ) : null}
-
-          <View style={{ gap: Spacing.md }}>
-            {surveys.map((survey) => (
-              <Card key={survey.id} style={{ gap: Spacing.xs }}>
-                <ThemedText style={styles.rowName}>{survey.consultantName ?? '알 수 없음'}</ThemedText>
-                <ThemedText style={[styles.rowMeta, { color: textSecondary }]}>
-                  만족도 {survey.satisfaction ?? '-'} · 준비 {survey.prep_minutes ?? '-'}분 · 희망학생{' '}
-                  {survey.max_students ?? '-'}명
-                </ThemedText>
-                {survey.request_to_company ? (
-                  <ThemedText style={styles.rowBody}>{survey.request_to_company}</ThemedText>
-                ) : null}
-              </Card>
-            ))}
-            {surveys.length === 0 ? (
-              <ThemedText style={[styles.empty, { color: textSecondary }]}>제출된 설문이 없어요.</ThemedText>
-            ) : null}
-          </View>
-        </>
+        </View>
       )}
+
+      <AppModal
+        visible={noteFormOpen}
+        title="피드백 남기기"
+        subtitle="컨설턴트 운영 피드백은 실장만 볼 수 있어요"
+        onClose={() => setNoteFormOpen(false)}
+        onConfirm={handleSaveNote}
+        confirmLabel="등록"
+        confirmLoading={savingNote}>
+        <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>컨설턴트</ThemedText>
+        <ConsultantPicker value={noteConsultantId} onChange={setNoteConsultantId} />
+        <TextInput
+          style={[styles.textArea, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={noteBody}
+          onChangeText={setNoteBody}
+          placeholder="피드백 내용"
+          placeholderTextColor={textSecondary}
+          multiline
+        />
+      </AppModal>
+
+      <AppModal
+        visible={surveyFormOpen}
+        title="설문 대신 제출"
+        subtitle="컨설턴트가 직접 제출하지 못한 경우 실장이 대신 입력해요"
+        onClose={() => setSurveyFormOpen(false)}
+        onConfirm={handleSubmitSurvey}
+        confirmLabel="제출"
+        confirmLoading={savingSurvey}>
+        <ThemedText style={[styles.fieldLabel, { color: textSecondary }]}>컨설턴트</ThemedText>
+        <ConsultantPicker value={surveyConsultantId} onChange={setSurveyConsultantId} />
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={surveyForm.satisfaction}
+          onChangeText={(satisfaction) => setSurveyForm((prev) => ({ ...prev, satisfaction }))}
+          placeholder="만족도 (1~10)"
+          placeholderTextColor={textSecondary}
+          keyboardType="number-pad"
+        />
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={surveyForm.prepMinutes}
+          onChangeText={(prepMinutes) => setSurveyForm((prev) => ({ ...prev, prepMinutes }))}
+          placeholder="준비 시간(분)"
+          placeholderTextColor={textSecondary}
+          keyboardType="number-pad"
+        />
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={surveyForm.maxStudents}
+          onChangeText={(maxStudents) => setSurveyForm((prev) => ({ ...prev, maxStudents }))}
+          placeholder="맡을 수 있는 학생 수"
+          placeholderTextColor={textSecondary}
+          keyboardType="number-pad"
+        />
+        <TextInput
+          style={[styles.input, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={surveyForm.desiredHourlyRate}
+          onChangeText={(desiredHourlyRate) => setSurveyForm((prev) => ({ ...prev, desiredHourlyRate }))}
+          placeholder="희망 시급(원)"
+          placeholderTextColor={textSecondary}
+          keyboardType="number-pad"
+        />
+        <TextInput
+          style={[styles.textArea, { color: text, backgroundColor: surfaceSecondary, borderColor: border }]}
+          value={surveyForm.requestToCompany}
+          onChangeText={(requestToCompany) => setSurveyForm((prev) => ({ ...prev, requestToCompany }))}
+          placeholder="회사에 바라는 점"
+          placeholderTextColor={textSecondary}
+          multiline
+        />
+      </AppModal>
     </ScrollView>
   );
 }
@@ -397,13 +406,18 @@ export function FeedbackScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: Spacing.xl, paddingTop: Spacing.xxxl + 20, paddingBottom: 60, gap: Spacing.md },
-  tabRow: { flexDirection: 'row', gap: Spacing.sm },
-  tabButton: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radius.pill, alignItems: 'center' },
+  tabRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  tabButton: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill, alignItems: 'center' },
   tabText: { fontSize: 13, fontWeight: '700' },
+  outlineButton: { height: 34, paddingHorizontal: Spacing.md, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  outlineButtonLabel: { fontSize: 12.5, fontWeight: '600' },
   fieldLabel: { fontSize: 12, fontWeight: '600' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, alignItems: 'center' },
   chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm - 2, borderRadius: Radius.pill },
   chipText: { fontSize: 12.5, fontWeight: '700' },
+  statusChip: { height: 30, paddingHorizontal: Spacing.md, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  deleteButton: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.sm },
+  deleteButtonLabel: { fontSize: 12, fontWeight: '600' },
   input: {
     height: 44,
     borderRadius: Radius.md,
@@ -420,12 +434,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlignVertical: 'top',
   },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowName: { fontSize: 15, fontWeight: '700' },
+  rowHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  rowName: { fontSize: 14, fontWeight: '700' },
+  rowSub: { fontSize: 12.5 },
+  rowDate: { fontSize: 11.5, fontFamily: 'ui-monospace' },
   rowMeta: { fontSize: 12.5 },
-  rowBody: { fontSize: 14, lineHeight: 20 },
-  summaryCard: { gap: Spacing.sm },
-  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  summaryItem: { fontSize: 13, fontWeight: '600' },
-  empty: { textAlign: 'center', marginTop: 20, fontSize: 14 },
+  rowBody: { fontSize: 14, lineHeight: 21 },
+  summaryCard: { overflow: 'hidden' },
+  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  summaryTile: { flexGrow: 1, flexBasis: '25%', padding: Spacing.md, gap: 4 },
+  summaryValue: { fontSize: 20, fontWeight: '700' },
+  summaryLabel: { fontSize: 12 },
+  emptyCard: { alignItems: 'center', paddingVertical: Spacing.xxl },
+  emptyText: { fontSize: 13.5 },
 });
