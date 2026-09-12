@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge, lessonStatusTone } from '@/components/ui/badge';
 import { Radius, Spacing } from '@/constants/theme';
-import { useIsWorkspaceWide } from '@/hooks/use-breakpoint';
+import { useBreakpoint, useIsWorkspaceWide } from '@/hooks/use-breakpoint';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import {
   confirmRecordUpload,
@@ -50,6 +50,8 @@ type State =
 export function StudentPortalScreen() {
   const router = useRouter();
   const isWorkspaceWide = useIsWorkspaceWide();
+  const breakpoint = useBreakpoint();
+  const isPc = breakpoint === 'desktop';
   const [state, setState] = useState<State>({ status: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -259,18 +261,29 @@ export function StudentPortalScreen() {
     </Pressable>
   );
 
+  // PC(데스크톱)에서는 회차를 눌러도 그 자리에서 펼치지 않고, 오른쪽 세 번째
+  // 칼럼의 상세 패널을 채운다 — 실장/컨설턴트 화면의 SelectableTimeline과 같은 전환.
+  const activeSessionId = isPc ? (expandedId ?? portal.sessions[0]?.id ?? null) : expandedId;
+  const selectedSession = isPc
+    ? (portal.sessions.find((s) => s.id === activeSessionId) ?? null)
+    : null;
+  const detailColors = { surface, surfaceSecondary, border, borderStrong, textSecondary, primary, primaryMuted, success, danger };
+
   const timeline = (
     <View style={styles.timeline}>
       {portal.sessions.map((session) => (
         <TimelineNode
           key={session.id}
           session={session}
-          expanded={expandedId === session.id}
+          expanded={!isPc && expandedId === session.id}
+          selected={isPc && activeSessionId === session.id}
           chatCount={rooms.sessions[session.id]?.messageCount ?? 0}
-          onToggle={() => setExpandedId((current) => (current === session.id ? null : session.id))}
+          onToggle={() =>
+            setExpandedId((current) => (isPc ? session.id : current === session.id ? null : session.id))
+          }
           onOpenChat={() => openRoom(session.id)}
           onToggleNextAction={(itemKey, done) => handleToggleNextAction(session.id, itemKey, done)}
-          colors={{ surface, surfaceSecondary, border, borderStrong, textSecondary, primary, primaryMuted, success, danger }}
+          colors={detailColors}
         />
       ))}
 
@@ -307,6 +320,20 @@ export function StudentPortalScreen() {
     </View>
   );
 
+  const detailColumn = isPc ? (
+    <View style={styles.wideDetail}>
+      <SelectedSessionPanel
+        session={selectedSession}
+        chatCount={selectedSession ? (rooms.sessions[selectedSession.id]?.messageCount ?? 0) : 0}
+        onOpenChat={() => selectedSession && openRoom(selectedSession.id)}
+        onToggleNextAction={(itemKey, done) =>
+          selectedSession && handleToggleNextAction(selectedSession.id, itemKey, done)
+        }
+        colors={detailColors}
+      />
+    </View>
+  ) : null;
+
   return (
     <ScrollView
       style={{ backgroundColor: background }}
@@ -321,6 +348,7 @@ export function StudentPortalScreen() {
             {alwaysCard}
           </View>
           <View style={styles.wideMain}>{timeline}</View>
+          {detailColumn}
         </View>
       ) : (
         <>
@@ -351,9 +379,22 @@ function nodeVisual(
   }
 }
 
+type DetailColors = {
+  surface: string;
+  surfaceSecondary: string;
+  border: string;
+  borderStrong: string;
+  textSecondary: string;
+  primary: string;
+  primaryMuted: string;
+  success: string;
+  danger: string;
+};
+
 function TimelineNode({
   session,
   expanded,
+  selected,
   chatCount,
   onToggle,
   onOpenChat,
@@ -362,21 +403,12 @@ function TimelineNode({
 }: {
   session: StudentPortalSession;
   expanded: boolean;
+  selected?: boolean;
   chatCount: number;
   onToggle: () => void;
   onOpenChat: () => void;
   onToggleNextAction: (itemKey: string, done: boolean) => void;
-  colors: {
-    surface: string;
-    surfaceSecondary: string;
-    border: string;
-    borderStrong: string;
-    textSecondary: string;
-    primary: string;
-    primaryMuted: string;
-    success: string;
-    danger: string;
-  };
+  colors: DetailColors;
 }) {
   const visual = nodeVisual(session.status, colors);
 
@@ -391,7 +423,13 @@ function TimelineNode({
       <View style={styles.nodeBody}>
         <Pressable
           onPress={onToggle}
-          style={[styles.nodeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          style={[
+            styles.nodeCard,
+            {
+              backgroundColor: selected ? colors.primaryMuted : colors.surface,
+              borderColor: selected ? colors.primary : colors.border,
+            },
+          ]}>
           <View style={styles.nodeCardHead}>
             <ThemedText style={styles.nodeTitle}>
               {session.session_round}회차 · {session.lesson_date}
@@ -405,95 +443,152 @@ function TimelineNode({
 
         {expanded ? (
           <View style={[styles.expandCard, { backgroundColor: colors.surface }]}>
-            {session.topic ? (
-              <View style={styles.expandSection}>
-                <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>주제</ThemedText>
-                <ThemedText style={styles.expandBody}>{session.topic}</ThemedText>
-              </View>
-            ) : null}
-
-            {session.student_summary ? (
-              <View
-                style={[
-                  styles.expandSection,
-                  session.topic && styles.expandSectionBordered,
-                  session.topic && { borderTopColor: colors.border },
-                ]}>
-                <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>수업 요약</ThemedText>
-                <ThemedText style={styles.expandBody}>{session.student_summary}</ThemedText>
-              </View>
-            ) : null}
-
-            {session.next_actions.length > 0 ? (
-              <View
-                style={[
-                  styles.expandSection,
-                  styles.expandSectionBordered,
-                  { borderTopColor: colors.border },
-                ]}>
-                <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>
-                  다음 수업까지 할 것
-                </ThemedText>
-                {session.next_actions.map((item) => (
-                  <Pressable
-                    key={item.key}
-                    style={styles.checkRow}
-                    onPress={() => onToggleNextAction(item.key, !item.done)}>
-                    <View
-                      style={[
-                        styles.checkbox,
-                        { borderColor: item.done ? colors.primary : colors.borderStrong },
-                        item.done && { backgroundColor: colors.primary },
-                      ]}>
-                      {item.done ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
-                    </View>
-                    <ThemedText
-                      style={[
-                        styles.checkLabel,
-                        item.done && { color: colors.textSecondary, textDecorationLine: 'line-through' },
-                      ]}>
-                      {item.text}
-                    </ThemedText>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-
-            {session.materials.length > 0 ? (
-              <View style={[styles.expandSection, styles.expandSectionBordered, { borderTopColor: colors.border }]}>
-                <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>수업 자료</ThemedText>
-                {session.materials.map((material) => (
-                  <View key={material.id} style={[styles.materialRow, { backgroundColor: colors.surfaceSecondary }]}>
-                    <Ionicons name="document-attach-outline" size={17} color={colors.primary} />
-                    <ThemedText style={[styles.materialText, { color: colors.primary }]} numberOfLines={1}>
-                      {material.title}
-                    </ThemedText>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            {session.student_summary === null &&
-            session.topic === null &&
-            session.next_actions.length === 0 &&
-            session.materials.length === 0 ? (
-              <ThemedText style={[styles.expandBody, { color: colors.textSecondary }]}>
-                아직 공유된 수업 내용이 없어요.
-              </ThemedText>
-            ) : null}
-
-            <Pressable
-              onPress={onOpenChat}
-              style={[styles.openChatButton, { backgroundColor: colors.primaryMuted }]}>
-              <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.primary} />
-              <ThemedText style={[styles.openChatText, { color: colors.primary }]}>
-                이 회차 대화 열기 · {chatCount}
-              </ThemedText>
-            </Pressable>
+            <SessionDetailBody
+              session={session}
+              chatCount={chatCount}
+              onOpenChat={onOpenChat}
+              onToggleNextAction={onToggleNextAction}
+              colors={colors}
+            />
           </View>
         ) : null}
       </View>
     </View>
+  );
+}
+
+/** 회차 상세 본문 — 모바일/태블릿에서는 타임라인 카드 아래 펼쳐지고, PC(3열)에서는
+ * 오른쪽 칼럼의 {@link SelectedSessionPanel} 안에서 쓰인다. */
+function SessionDetailBody({
+  session,
+  chatCount,
+  onOpenChat,
+  onToggleNextAction,
+  colors,
+}: {
+  session: StudentPortalSession;
+  chatCount: number;
+  onOpenChat: () => void;
+  onToggleNextAction: (itemKey: string, done: boolean) => void;
+  colors: DetailColors;
+}) {
+  return (
+    <>
+      {session.topic ? (
+        <View style={styles.expandSection}>
+          <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>주제</ThemedText>
+          <ThemedText style={styles.expandBody}>{session.topic}</ThemedText>
+        </View>
+      ) : null}
+
+      {session.student_summary ? (
+        <View
+          style={[
+            styles.expandSection,
+            session.topic && styles.expandSectionBordered,
+            session.topic && { borderTopColor: colors.border },
+          ]}>
+          <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>수업 요약</ThemedText>
+          <ThemedText style={styles.expandBody}>{session.student_summary}</ThemedText>
+        </View>
+      ) : null}
+
+      {session.next_actions.length > 0 ? (
+        <View style={[styles.expandSection, styles.expandSectionBordered, { borderTopColor: colors.border }]}>
+          <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>다음 수업까지 할 것</ThemedText>
+          {session.next_actions.map((item) => (
+            <Pressable key={item.key} style={styles.checkRow} onPress={() => onToggleNextAction(item.key, !item.done)}>
+              <View
+                style={[
+                  styles.checkbox,
+                  { borderColor: item.done ? colors.primary : colors.borderStrong },
+                  item.done && { backgroundColor: colors.primary },
+                ]}>
+                {item.done ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
+              </View>
+              <ThemedText
+                style={[styles.checkLabel, item.done && { color: colors.textSecondary, textDecorationLine: 'line-through' }]}>
+                {item.text}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      {session.materials.length > 0 ? (
+        <View style={[styles.expandSection, styles.expandSectionBordered, { borderTopColor: colors.border }]}>
+          <ThemedText style={[styles.expandLabel, { color: colors.textSecondary }]}>수업 자료</ThemedText>
+          {session.materials.map((material) => (
+            <View key={material.id} style={[styles.materialRow, { backgroundColor: colors.surfaceSecondary }]}>
+              <Ionicons name="document-attach-outline" size={17} color={colors.primary} />
+              <ThemedText style={[styles.materialText, { color: colors.primary }]} numberOfLines={1}>
+                {material.title}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {session.student_summary === null &&
+      session.topic === null &&
+      session.next_actions.length === 0 &&
+      session.materials.length === 0 ? (
+        <ThemedText style={[styles.expandBody, { color: colors.textSecondary }]}>
+          아직 공유된 수업 내용이 없어요.
+        </ThemedText>
+      ) : null}
+
+      <Pressable onPress={onOpenChat} style={[styles.openChatButton, { backgroundColor: colors.primaryMuted }]}>
+        <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.primary} />
+        <ThemedText style={[styles.openChatText, { color: colors.primary }]}>이 회차 대화 열기 · {chatCount}</ThemedText>
+      </Pressable>
+    </>
+  );
+}
+
+/** PC(3열)에서 타임라인 오른쪽에 고정으로 보이는 선택된 회차 상세 — 실장/컨설턴트
+ * 화면의 SessionRecordPanel과 대응하지만, 학생 화면이라 수정·삭제 없이 읽기 전용이다. */
+function SelectedSessionPanel({
+  session,
+  chatCount,
+  onOpenChat,
+  onToggleNextAction,
+  colors,
+}: {
+  session: StudentPortalSession | null;
+  chatCount: number;
+  onOpenChat: () => void;
+  onToggleNextAction: (itemKey: string, done: boolean) => void;
+  colors: DetailColors;
+}) {
+  if (!session) {
+    return (
+      <View style={[styles.card, styles.detailEmptyCard, { backgroundColor: colors.surface }]}>
+        <ThemedText style={[styles.detailEmptyText, { color: colors.textSecondary }]}>
+          왼쪽 타임라인에서 회차를 선택하면 여기서 기록을 볼 수 있습니다.
+        </ThemedText>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <View style={styles.detailHeadRow}>
+        <ThemedText style={[styles.detailHeadLabel, { color: colors.textSecondary }]}>
+          {session.session_round}회차 · {session.lesson_date}
+        </ThemedText>
+        <Badge label={session.status} tone={lessonStatusTone(session.status)} />
+      </View>
+      <View style={[styles.expandCard, styles.detailCard, { backgroundColor: colors.surface }]}>
+        <SessionDetailBody
+          session={session}
+          chatCount={chatCount}
+          onOpenChat={onOpenChat}
+          onToggleNextAction={onToggleNextAction}
+          colors={colors}
+        />
+      </View>
+    </>
   );
 }
 
@@ -504,6 +599,12 @@ const styles = StyleSheet.create({
   wideRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xl },
   wideRail: { width: 360, flexShrink: 0 },
   wideMain: { flex: 1, minWidth: 0 },
+  wideDetail: { width: 400, flexShrink: 0 },
+  detailHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2, marginBottom: 12 },
+  detailHeadLabel: { fontSize: 13, fontWeight: '700', flex: 1 },
+  detailCard: { marginTop: 0 },
+  detailEmptyCard: { minHeight: 120, alignItems: 'center', justifyContent: 'center', padding: 14 },
+  detailEmptyText: { fontSize: 13.5, lineHeight: 19, textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md, marginBottom: 14 },
   headerTexts: { flexShrink: 1, gap: 2 },
   hd: { fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
